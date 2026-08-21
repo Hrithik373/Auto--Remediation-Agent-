@@ -1,0 +1,2 @@
+# Phase P5: provisioned Grafana dashboards go here (datasources.yml, dashboards/*.json).
+# Placeholder so the directory is tracked by git before P5 populates it.

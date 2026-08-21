@@ -1,0 +1,36 @@
+# Default runtime config. Every RunRecord stores a hash of the resolved config (config_hash) for
+# reproducibility — see CLAUDE.md "Reproducibility".
+
+env:
+  adapter: offline          # offline | aiopslab | itbench
+  fixtures_dir: fixtures/incidents
+
+models:
+  diagnosis_agent: claude-sonnet-5     # Phase P1
+  llm_judge: claude-sonnet-5           # Phase P2
+  max_tokens_per_call: 4096
+
+budgets:
+  context_tokens: 8000       # per-incident telemetry compaction target (schemas/incident.py)
+  max_steps: 6                # orchestrator loop cap (blueprint §5)
+
+verifier:
+  active: envelope            # envelope | llm_judge | learned | combined
+  threshold: 0.5               # τ — risk score cutoff; swept in Phase P4's Pareto analysis
+  envelope_config: config/action_envelope.yaml
+
+execution:
+  # Golden rule (CLAUDE.md): auto_execute defaults to FALSE everywhere.
+  auto_execute: false
+  dry_run: true
+
+orchestrator:
+  seed: 0
+
+gateway:
+  host: 0.0.0.0
+  port: 8080
+
+store:
+  backend: duckdb
+  path: runs/sentinel.duckdb

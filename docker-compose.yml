@@ -1,0 +1,36 @@
+# Phase P5 infra: LLM gateway + observability stack.
+# Not wired up yet — src/sentinel/gateway/app.py and src/sentinel/observability/metrics.py are stubs
+# (see PROGRESS.md). This file documents the intended shape so P5 has a target to build against.
+
+version: "3.9"
+
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway   # TODO(P5): add Dockerfile.gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./config:/app/config:ro
+    profiles: ["p5"]
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro   # TODO(P5): add this file
+    profiles: ["p5"]
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./config/grafana:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    profiles: ["p5"]

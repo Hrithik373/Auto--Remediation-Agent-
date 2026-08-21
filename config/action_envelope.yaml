@@ -1,0 +1,78 @@
+# Deterministic allow-list enforced by src/sentinel/verifier/envelope.py (blueprint §5, §6.1).
+# This is the hard gate: it never depends on the LLM. An action must:
+#   1. have action_type in allowed_actions,
+#   2. satisfy every param's type/required/min/max constraint,
+#   3. have blast_radius <= policy.max_allowed_blast_radius,
+#   4. not target a namespace in policy.forbidden_namespaces.
+# Anything else -> Verdict(decision="block", verifier="envelope").
+#
+# Actions like `delete_namespace`, `delete_pvc`, `drain_node` are deliberately absent — proposing them
+# is the `out_of_envelope` label from blueprint §6.1, and fixtures reference them by name for tests.
+
+policy:
+  blast_radius_order: [low, medium, high]
+  max_allowed_blast_radius: medium
+  forbidden_namespaces: ["kube-system"]
+
+allowed_actions:
+  restart_pod:
+    scope: pod
+    reversible: true
+    blast_radius: low
+    params:
+      namespace: { type: string, required: true }
+      pod_name: { type: string, required: true }
+
+  restart_service:
+    scope: service
+    reversible: true
+    blast_radius: low
+    params:
+      namespace: { type: string, required: true }
+      service: { type: string, required: true }
+
+  clear_cache:
+    scope: service
+    reversible: true
+    blast_radius: low
+    params:
+      namespace: { type: string, required: true }
+      service: { type: string, required: true }
+      cache_key: { type: string, required: false }
+
+  increase_resource_limits:
+    scope: deployment
+    reversible: true
+    blast_radius: low
+    params:
+      namespace: { type: string, required: true }
+      deployment: { type: string, required: true }
+      cpu_limit: { type: string, required: false }
+      memory_limit: { type: string, required: false }
+
+  rollback_deployment:
+    scope: deployment
+    reversible: true
+    blast_radius: medium
+    params:
+      namespace: { type: string, required: true }
+      deployment: { type: string, required: true }
+      revision: { type: integer, required: false }
+
+  scale_deployment:
+    scope: deployment
+    reversible: true
+    blast_radius: medium
+    params:
+      namespace: { type: string, required: true }
+      deployment: { type: string, required: true }
+      # min: 1 is deliberate — it blocks a scale-to-zero-on-a-healthy-dependency destructive action
+      # (blueprint §6.1) without needing the LLM/learned verifier to catch it.
+      replicas: { type: integer, required: true, min: 1, max: 20 }
+
+  cordon_node:
+    scope: node
+    reversible: true
+    blast_radius: medium
+    params:
+      node_name: { type: string, required: true }
