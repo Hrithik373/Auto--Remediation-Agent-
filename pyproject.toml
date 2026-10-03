@@ -26,6 +26,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Only scripts/fetch_itbench.py needs this (one-time dataset download); the core never imports it.
+data = [
+    "huggingface_hub>=0.24",
+]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",

@@ -1,0 +1,92 @@
+# Mapping tables + sampling config for scripts/convert_itbench.py (docs/tasks/itbench_converter_spec.md).
+#
+# Everything a human might want to retune lives here, not in Python. Every mapping below is a
+# best-effort heuristic: entries it produces are flagged `needs_review: true` in the emitted fixture,
+# and only labeling/review_cli.py (Phase P3, run by a human) ever sets provenance=human_reviewed.
+
+# --- §3a: ITBench recommended_actions free text -> allow-listed action_type ------------------------
+# Regexes are matched case-insensitively against each recommended action string, first match wins.
+# `confidence: low` marks a nearest-available match rather than an exact one (spec: "set up autoscaler"
+# -> scale_deployment). Every mapped entry is needs_review regardless; low confidence is noted in the
+# entry's review_note so the reviewer knows where to look first.
+text_patterns:
+  # Investigation-only steps are never remedies, even when they mention a mappable verb.
+  - { pattern: "^(monitor|verify|check|evaluate|review current|found|detect|deem)\\b", action_type: null, confidence: high }
+  - { pattern: "disable .*flag", action_type: toggle_feature_flag, confidence: high }
+  - { pattern: "delete the resource|stop the .*(chaos|experiment)|resolve network partition|remove the networkpolicy", action_type: remove_fault_injection, confidence: high }
+  - { pattern: "increase .*quota", action_type: increase_namespace_quota, confidence: high }
+  # Fixing a bad env var / image / command / node selector shipped in a deployment == revert that
+  # change; rollback_deployment is the allow-listed way to do it (medium: assumes a good prior revision).
+  - { pattern: "environment variable|change the image|image field|invalid command|node selector", action_type: rollback_deployment, confidence: medium }
+  - { pattern: "restart.*\\b(pod|pods|container)\\b", action_type: restart_pod, confidence: high }
+  - { pattern: "restart.*\\bservice\\b", action_type: restart_service, confidence: high }
+  - { pattern: "roll ?back", action_type: rollback_deployment, confidence: high }
+  - { pattern: "scale (up|out)|scale the (deployment|replicas)|increase (the )?replicas", action_type: scale_deployment, confidence: high }
+  - { pattern: "set up (an )?autoscaler", action_type: scale_deployment, confidence: low }
+  - { pattern: "clear.*cache", action_type: clear_cache, confidence: high }
+  - { pattern: "increase.*(cpu|memory) (allocation|limit)|increase.*(limit|resource)", action_type: increase_resource_limits, confidence: medium }
+  - { pattern: "cordon.*node", action_type: cordon_node, confidence: high }
+
+# Recommended-action text that matches NO allow-listed action_type is not dropped and not forced into
+# the nearest type. It goes to oracle.unmapped_recommendations[] with the raw text and the remediation
+# family below, so a reviewer can decide whether it is genuinely out_of_envelope or whether
+# config/action_envelope.yaml should grow a new allow-listed type. These families are descriptive only.
+unmapped_remediation_families:
+  - { pattern: "^(monitor|verify|check|evaluate|review current|found|detect|deem)\\b", family: investigation_only }
+  - { pattern: "flag", family: toggle_feature_flag }
+  - { pattern: "chaos|delete the resource|stop the .*experiment|network partition", family: remove_fault_injection }
+  - { pattern: "environment variable|\\bport\\b|_addr", family: fix_env_config }
+  - { pattern: "\\bimage\\b", family: fix_container_image }
+  - { pattern: "network polic", family: fix_network_policy }
+  - { pattern: "quota", family: adjust_resource_quota }
+  - { pattern: "node selector", family: fix_scheduling_constraints }
+  - { pattern: "password|authentication|configuration", family: fix_app_config }
+  - { pattern: "traffic|attack|flood|block traffic", family: traffic_control }
+  - { pattern: "monitor|verify|check|identify|evaluate|found|detect|deem", family: investigation_only }
+
+# --- fault_family derivation (best effort, ALWAYS needs_review) -----------------------------------
+# Matched in order against a signature string built from the ground truth:
+#   "<category> | <fault_mechanism> | <root-cause kind> | <root-cause id + filters> | <condition> |
+#    <recommended action text>"
+# First match wins; the fallback is "unknown".
+fault_family_rules:
+  # traffic_surge must precede the autoscaler rule: Scenario-1's *remedy* text is "set up autoscaler",
+  # but its fault is a load-generator surge, not a misconfigured HPA.
+  - { pattern: "load-generator|flood|traffic is legit", family: traffic_surge }
+  - { pattern: "flagd|feature flag|\\bflag\\b", family: feature_flag_fault }
+  - { pattern: "network_partition|network partition|partition", family: network_partition }
+  - { pattern: "memory_stress|jvm_heap_stress|memory pressure|heap", family: memory_pressure }
+  - { pattern: "cpu.?stress|cpustress|cpu allocation", family: cpu_saturation }
+  - { pattern: "networkchaos|delay|latency \\| chaos", family: network_latency }
+  - { pattern: "jvmchaos|jvm-return", family: jvm_fault_injection }
+  - { pattern: "podchaos|pod-otel", family: pod_failure }
+  - { pattern: "environment_variable|environment variable|_addr", family: misconfiguration }
+  - { pattern: "invalid image|imagepullbackoff|\\bimage\\b", family: bad_rollout }
+  - { pattern: "networkpolicy|network polic", family: network_policy_misconfiguration }
+  - { pattern: "quota", family: resource_quota }
+  - { pattern: "horizontalpodautoscaler|\\bhpa\\b|misconfigured.*auto-?scaler", family: autoscaler_misconfiguration }
+  - { pattern: "node.selector|node_selector|node-selector", family: scheduling_failure }
+  - { pattern: "crashloop", family: crashloop }
+  - { pattern: "password|authentication", family: misconfiguration }
+
+# --- §2: telemetry sampling (do not embed raw files) ----------------------------------------------
+sampling:
+  # Window around the earliest firing alert. Asymmetric (the spec said +/-10): a fault starts well
+  # BEFORE its alert fires (alert rules wait out a `for:` duration), and in e.g. Scenario-2 the trace
+  # dump ends 12 minutes before the alert's activeAt -- a symmetric window kept zero spans.
+  window_minutes_before: 30
+  window_minutes_after: 10
+  max_log_lines: 200
+  max_log_lines_per_service: 40   # keeps one chatty service (e.g. an envoy proxy) from filling the cap
+  max_log_body_chars: 300
+  max_k8s_event_lines: 40       # Warning-type k8s events in the window, merged into logs (prefixed)
+  max_trace_spans: 10
+  max_metric_points: 50
+  # Lines/spans matching these are dropped as known benchmark noise (flagd long-poll streams time out
+  # by design every ~600s and show up as Error spans in every scenario).
+  noise_patterns: ["flagd\\.evaluation\\.v1\\.Service/EventStream"]
+  # The raw logs carry almost no WARN/ERROR severity (OTel demo services log at INFO), so a body that
+  # matches one of these counts as error-ish when ranking which lines to keep.
+  error_body_patterns:
+    - "\\b5\\d\\d\\b"
+    - "(?i)error|exception|fail|timeout|timed out|refused|unavailable|deadline|panic|oom|backoff"

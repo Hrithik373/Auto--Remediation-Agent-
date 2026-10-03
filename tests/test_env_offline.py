@@ -1,8 +1,11 @@
 """Phase P0: OfflineEnvAdapter must run the full EnvAdapter contract with zero cluster, against every
-hand-built fixture in fixtures/incidents/.
+fixture in fixtures/incidents/ -- the 6 hand-built P0 ones plus everything scripts/convert_itbench.py
+emits. Fixtures are discovered from disk, so a newly added fixture can't be silently skipped.
 """
 
 from __future__ import annotations
+
+from pathlib import Path
 
 import pytest
 
@@ -10,7 +13,11 @@ from sentinel.env.offline_adapter import OfflineEnvAdapter
 from sentinel.schemas.action import ProposedAction
 from sentinel.schemas.incident import IncidentContext
 
-EXPECTED_FIXTURES = {
+FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "incidents"
+ALL_FIXTURES = sorted(p.stem for p in FIXTURES_DIR.glob("*.json"))
+
+# The hand-built P0 set; must always be present regardless of how many converted fixtures exist.
+P0_FIXTURES = {
     "pod-crashloop",
     "bad-rollout-latency",
     "memory-leak-oom",
@@ -26,15 +33,16 @@ def env() -> OfflineEnvAdapter:
 
 
 def test_list_incidents_finds_all_fixtures(env: OfflineEnvAdapter):
-    assert set(env.list_incidents()) == EXPECTED_FIXTURES
+    assert set(env.list_incidents()) == set(ALL_FIXTURES)
+    assert P0_FIXTURES <= set(ALL_FIXTURES)
 
 
-@pytest.mark.parametrize("incident_id", sorted(EXPECTED_FIXTURES))
+@pytest.mark.parametrize("incident_id", ALL_FIXTURES)
 def test_get_incident_returns_valid_context(env: OfflineEnvAdapter, incident_id: str):
     incident = env.get_incident(incident_id)
     assert isinstance(incident, IncidentContext)
     assert incident.incident_id == incident_id
-    assert incident.source == "offline"
+    assert incident.source == ("offline" if incident_id in P0_FIXTURES else "itbench")
     assert incident.fault_family
     assert incident.telemetry.logs  # every fixture has at least one log line
 

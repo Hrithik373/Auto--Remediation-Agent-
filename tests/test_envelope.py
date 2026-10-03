@@ -171,6 +171,29 @@ class TestEnvelopeUnitRules:
         assert verdict.decision == "block"
         assert any("unrecognized params" in reason for reason in verdict.reasons)
 
+    def test_enum_param_outside_allowed_values_is_blocked(self, verifier):
+        # remove_fault_injection may only delete allow-listed kinds -- never e.g. a Deployment.
+        action = ProposedAction(
+            action_type="remove_fault_injection",
+            target="checkout",
+            params={"namespace": "otel-demo", "kind": "Deployment", "name": "checkout"},
+            rationale="r",
+            predicted_effect="e",
+        )
+        verdict = verifier.verify(_DUMMY_INCIDENT, action)
+        assert verdict.decision == "block"
+        assert any("not one of the allowed values" in reason for reason in verdict.reasons)
+
+    def test_enum_param_inside_allowed_values_is_allowed(self, verifier):
+        action = ProposedAction(
+            action_type="remove_fault_injection",
+            target="otel-demo-ad-memory-stress",
+            params={"namespace": "chaos-mesh", "kind": "StressChaos", "name": "otel-demo-ad-memory-stress"},
+            rationale="r",
+            predicted_effect="e",
+        )
+        assert verifier.verify(_DUMMY_INCIDENT, action).decision == "allow"
+
     def test_forbidden_namespace_is_blocked(self, verifier):
         action = ProposedAction(
             action_type="restart_pod",

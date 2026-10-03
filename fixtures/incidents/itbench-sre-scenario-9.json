@@ -1,0 +1,478 @@
+{
+  "incident_id": "itbench-sre-scenario-9",
+  "source": "itbench",
+  "fault_family": "traffic_surge",
+  "budget_tokens": 8000,
+  "telemetry": {
+    "logs": [
+      "2025-12-15T17:26:33Z frontend-proxy INFO [2025-12-15T17:26:33.260Z] \"GET /api/recommendations?productIds=6E92ZMYYFZ HTTP/1.1\" 200 - via_upstream - \"-\" 0 1285 13 13 \"-\" \"python-requests/2.32.5\" \"61ef9869-aa34-9a9b-a72b-9cfb4c628e2b\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:39380 100.96.2.11:8080 100.96.5.114:38392 - - (x1973 similar)",
+      "2025-12-15T17:26:33Z frontend-proxy INFO [2025-12-15T17:26:33.336Z] \"GET /api/products/LS4PSXUNUM HTTP/1.1\" 200 - via_upstream - \"-\" 0 535 2 2 \"-\" \"python-requests/2.32.5\" \"90775673-7e8f-9a67-84fb-653cb3642d51\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:39320 100.96.2.11:8080 100.96.5.114:45458 - - (x1039 similar)",
+      "2025-12-15T17:26:33Z frontend-proxy INFO [2025-12-15T17:26:33.528Z] \"GET /api/data/?contextKeys=telescopes HTTP/1.1\" 308 - via_upstream - \"-\" 0 32 1 0 \"-\" \"python-requests/2.32.5\" \"90148a52-b1e3-97bf-a52e-957284477f17\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:56284 100.96.2.11:8080 100.96.5.114:38570 - - (x1667 similar)",
+      "2025-12-15T17:26:33Z frontend-proxy INFO [2025-12-15T17:26:33.530Z] \"GET /api/data?contextKeys=telescopes HTTP/1.1\" 200 - via_upstream - \"-\" 0 106 74 74 \"-\" \"python-requests/2.32.5\" \"44b37eb2-2b11-926c-964b-264b182b7657\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:56284 100.96.2.11:8080 100.96.5.114:38570 - - (x1667 similar)",
+      "2025-12-15T17:26:33Z frontend-proxy INFO [2025-12-15T17:26:33.811Z] \"GET /api/products/2ZYFJ3GM2N HTTP/1.1\" 200 - via_upstream - \"-\" 0 558 2 2 \"-\" \"python-requests/2.32.5\" \"0c2404cf-6db2-9c87-9f25-2c11cb2fc14b\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:56284 100.96.2.11:8080 100.96.5.114:38544 - - (x1018 similar)",
+      "2025-12-15T17:26:33Z frontend-proxy INFO [2025-12-15T17:26:33.815Z] \"POST /api/cart HTTP/1.1\" 200 - via_upstream - \"-\" 102 99 4 4 \"-\" \"python-requests/2.32.5\" \"c23f82d7-2264-9e9b-86a0-b88921c5c9f0\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:56284 100.96.2.11:8080 100.96.5.114:38544 - - (x3785 similar)",
+      "2025-12-15T17:26:34Z frontend-proxy INFO [2025-12-15T17:26:34.125Z] \"GET /api/products/0PUK6V6EV0 HTTP/1.1\" 200 - via_upstream - \"-\" 0 421 1168 1168 \"-\" \"python-requests/2.32.5\" \"a7120e02-242c-99ff-ad3c-930e8af101ef\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:56284 100.96.2.11:8080 100.96.5.114:45416 - - (x1006 similar)",
+      "2025-12-15T17:26:34Z frontend-proxy INFO [2025-12-15T17:26:34.266Z] \"GET /api/products/HQTGWGPNH4 HTTP/1.1\" 200 - via_upstream - \"-\" 0 741 1127 1126 \"-\" \"python-requests/2.32.5\" \"a43518ca-f122-974d-bad7-36700830fa3c\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:33068 100.96.2.11:8080 100.96.5.114:38360 - - (x1015 similar)",
+      "2025-12-15T17:26:34Z frontend-proxy INFO [2025-12-15T17:26:34.360Z] \"GET /api/products/L9ECAV7KIM HTTP/1.1\" 200 - via_upstream - \"-\" 0 735 934 934 \"-\" \"python-requests/2.32.5\" \"6ba86d3a-07e4-9e5b-b752-bfc4aeef19b7\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:39320 100.96.2.11:8080 100.96.5.114:38416 - - (x987 similar)",
+      "2025-12-15T17:26:35Z frontend-proxy INFO [2025-12-15T17:26:35.355Z] \"GET /api/products/66VCHSJNUP HTTP/1.1\" 200 - via_upstream - \"-\" 0 498 142 141 \"-\" \"python-requests/2.32.5\" \"58310940-aba3-9f03-9316-2e4a66696207\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:33090 100.96.2.11:8080 100.96.5.114:38348 - - (x1015 similar)",
+      "2025-12-15T17:26:35Z frontend-proxy INFO [2025-12-15T17:26:35.466Z] \"GET /api/products/9SIQT8TOJO HTTP/1.1\" 200 - via_upstream - \"-\" 0 782 128 128 \"-\" \"python-requests/2.32.5\" \"1b6c1c52-142a-9256-98b7-b7ef8d6f6b35\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:33102 100.96.2.11:8080 100.96.5.114:45502 - - (x1035 similar)",
+      "2025-12-15T17:26:36Z frontend-proxy INFO [2025-12-15T17:26:36.606Z] \"GET /api/cart HTTP/1.1\" 200 - via_upstream - \"-\" 0 24 3 3 \"-\" \"python-requests/2.32.5\" \"061ff96e-c332-9bbd-842c-9d621779950e\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:56312 100.96.2.11:8080 100.96.5.114:38542 - - (x1845 similar)",
+      "2025-12-15T17:26:36Z load-generator INFO User viewing cart (x1846 similar)",
+      "2025-12-15T17:26:37Z frontend-proxy INFO [2025-12-15T17:26:37.040Z] \"GET /api/products/6E92ZMYYFZ HTTP/1.1\" 200 - via_upstream - \"-\" 0 476 3 2 \"-\" \"python-requests/2.32.5\" \"21b5f4f0-2392-90c2-9fcd-24dc0c37218b\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:33070 100.96.2.11:8080 100.96.5.114:38360 - - (x1039 similar)",
+      "2025-12-15T17:26:37Z frontend-proxy INFO [2025-12-15T17:26:37.483Z] \"GET /api/products/1YMWWN1N4O HTTP/1.1\" 200 - via_upstream - \"-\" 0 888 2 2 \"-\" \"python-requests/2.32.5\" \"d7534a45-efbe-97ae-b0ce-151e70fd50e9\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:33070 100.96.2.11:8080 100.96.5.114:38470 - - (x1048 similar)",
+      "2025-12-15T17:26:37Z frontend-proxy INFO [2025-12-15T17:26:37.625Z] \"GET /api/data/ HTTP/1.1\" 308 - via_upstream - \"-\" 0 9 1 0 \"-\" \"python-requests/2.32.5\" \"5c9e8a7f-5554-962e-83c0-8397e83612ff\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:56312 100.96.2.11:8080 100.96.5.114:38462 - - (x255 similar)",
+      "2025-12-15T17:26:37Z frontend-proxy INFO [2025-12-15T17:26:37.627Z] \"GET /api/data HTTP/1.1\" 200 - via_upstream - \"-\" 0 205 4 4 \"-\" \"python-requests/2.32.5\" \"fc3b5b3c-a706-925f-89a6-4ae711f27e71\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:56312 100.96.2.11:8080 100.96.5.114:38462 - - (x255 similar)",
+      "2025-12-15T17:26:37Z load-generator INFO User browsing product: 1YMWWN1N4O (x673 similar)",
+      "2025-12-15T17:26:38Z frontend-proxy INFO [2025-12-15T17:26:38.172Z] \"POST /api/checkout HTTP/1.1\" 200 - via_upstream - \"-\" 388 911 22 21 \"-\" \"python-requests/2.32.5\" \"ca9821d9-86bf-9b43-8868-5af2782555f5\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:33074 100.96.2.11:8080 100.96.5.114:38378 - - (x1291 similar)",
+      "2025-12-15T17:26:39Z frontend-proxy INFO [2025-12-15T17:26:39.034Z] \"GET / HTTP/1.1\" 200 - via_upstream - \"-\" 0 3166 58 57 \"-\" \"python-requests/2.32.5\" \"4091cbb6-d01e-98b5-82d2-07993c607ab9\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:33074 100.96.2.11:8080 100.96.5.114:38602 - - (x662 similar)",
+      "2025-12-15T17:26:39Z frontend-proxy INFO [2025-12-15T17:26:39.389Z] \"GET /api/products/OLJCESPC7Z HTTP/1.1\" 200 - via_upstream - \"-\" 0 508 2 2 \"-\" \"python-requests/2.32.5\" \"a38580ac-1e76-9c72-9b76-6ceaf143e103\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:33074 100.96.2.11:8080 100.96.5.114:38612 - - (x987 similar)",
+      "2025-12-15T17:26:40Z frontend-proxy INFO [2025-12-15T17:26:40.005Z] \"GET / HTTP/1.1\" 200 - via_upstream - \"-\" 0 3166 294 287 \"-\" \"Go-http-client/1.1\" \"2bf8d1df-bf62-9844-a50e-269bf96ce434\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:56312 100.96.2.11:8080 100.96.5.203:54430 - - (x35 similar)",
+      "2025-12-15T17:28:27Z k8s-event Warning FailedMount Pod/otel-collector-564d9c7987-69sz5: MountVolume.SetUp failed for volume \"opentelemetry-collector-configmap\" : failed to sync configmap cache: timed out waiting for the condition",
+      "2025-12-15T17:28:27Z k8s-event Warning Unhealthy Pod/otel-collector-564d9c7987-69sz5: Readiness probe failed: Get \"http://100.96.5.203:13133/\": dial tcp 100.96.5.203:13133: connect: connection refused",
+      "2025-12-15T17:32:26Z frontend-proxy INFO [2025-12-15T17:32:26.642Z] \"GET /api/products/L9ECAV7KIM HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 250 - \"-\" \"python-requests/2.32.5\" \"492c0538-5931-95e1-a522-f572d5efb857\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:41730 100.96.2 (x3 similar)",
+      "2025-12-15T17:34:06Z fraud-detection INFO Consumed record with orderId: 415a86ee-d9dc-11f0-b23e-4e537b7aeb7f, and updated total count to: 500 (x100 similar)",
+      "2025-12-15T17:35:08Z frontend-proxy INFO [2025-12-15T17:35:08.206Z] \"GET /api/products/2ZYFJ3GM2N HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 184 - \"-\" \"python-requests/2.32.5\" \"fc3db134-1ea8-9941-9757-7bd0aab35d50\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:53510 100.96.2 (x3 similar)",
+      "2025-12-15T17:35:08Z frontend-proxy INFO [2025-12-15T17:35:08.626Z] \"GET /api/products/0PUK6V6EV0 HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 542 - \"-\" \"python-requests/2.32.5\" \"592d8a66-1ece-9b5b-a2f9-d7d9b2285122\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:34520 100.96.2",
+      "2025-12-15T17:36:34Z frontend-proxy INFO [2025-12-15T17:36:34.779Z] \"GET /api/products/OLJCESPC7Z HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 512 - \"-\" \"python-requests/2.32.5\" \"9211e359-28b9-9671-9ff2-2e6dbcd27e94\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:41036 100.96.2",
+      "2025-12-15T17:37:02Z frontend-proxy INFO [2025-12-15T17:37:02.572Z] \"GET /api/data/?contextKeys=telescopes HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 522 - \"-\" \"python-requests/2.32.5\" \"e74a6618-8319-9a93-9f43-a432290af1dd\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:51816 (x4 similar)",
+      "2025-12-15T17:38:01Z frontend-proxy INFO [2025-12-15T17:38:01.154Z] \"GET /api/products/1YMWWN1N4O HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 241 - \"-\" \"python-requests/2.32.5\" \"d5ac1903-d98b-95f4-96f4-f346ddbfc990\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:41530 100.96.2",
+      "2025-12-15T17:40:37Z frontend-proxy INFO [2025-12-15T17:40:37.975Z] \"GET / HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 617 - \"-\" \"python-requests/2.32.5\" \"d0355419-5734-99fe-8ff4-5b85c143c089\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:40860 100.96.2.11:8080 100.96.5.114:3",
+      "2025-12-15T17:40:38Z frontend-proxy INFO [2025-12-15T17:40:38.352Z] \"GET /api/products/9SIQT8TOJO HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 240 - \"-\" \"python-requests/2.32.5\" \"95387423-735c-9a85-86d7-5b0c1d927ad2\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:52966 100.96.2",
+      "2025-12-15T17:46:22Z frontend-proxy INFO [2025-12-15T17:46:22.653Z] \"GET /api/recommendations?productIds=OLJCESPC7Z HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 242 - \"-\" \"python-requests/2.32.5\" \"6478b468-d17a-9880-93f3-2ed1d4c748cd\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2 (x2 similar)",
+      "2025-12-15T17:47:24Z frontend-proxy INFO [2025-12-15T17:47:24.499Z] \"GET /api/products/66VCHSJNUP HTTP/1.1\" 0 DC downstream_remote_disconnect - \"-\" 0 0 0 - \"-\" \"python-requests/2.32.5\" \"53a2c55c-d93d-9101-9c5f-f5b689666ada\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:39102 100.96.2.11:8080 100.96.5.114:38518 - -",
+      "2025-12-15T17:47:29Z load-generator INFO # occurrences Error",
+      "2025-12-15T17:47:29Z load-generator INFO 1 GET /api/data/: HTTPError('503 Server Error: Service Unavailable for url: /api/data/')",
+      "2025-12-15T17:47:29Z load-generator INFO 1 GET /api/data/?contextKeys=assembly: ConnectionRefusedError(111, 'Connection refused') (x2 similar)",
+      "2025-12-15T17:47:29Z load-generator INFO 1 GET /api/products/L9ECAV7KIM: HTTPError('504 Server Error: Gateway Timeout for url: /api/products/L9ECAV7KIM')",
+      "2025-12-15T17:47:29Z load-generator INFO 1 GET /api/products/LS4PSXUNUM: HTTPError('503 Server Error: Service Unavailable for url: /api/products/LS4PSXUNUM')",
+      "2025-12-15T17:47:29Z load-generator INFO 1 GET /api/recommendations?productIds=HQTGWGPNH4: ConnectionRefusedError(111, 'Connection refused')",
+      "2025-12-15T17:47:29Z load-generator INFO 1 GET /api/recommendations?productIds=OLJCESPC7Z: HTTPError('504 Server Error: Gateway Timeout for url: /api/recommendations?productIds=OLJCESPC7Z')",
+      "2025-12-15T17:47:29Z load-generator INFO 2 GET /api/cart: HTTPError('504 Server Error: Gateway Timeout for url: /api/cart')",
+      "2025-12-15T17:47:29Z load-generator INFO 2 GET /api/data/?contextKeys=assembly: HTTPError('503 Server Error: Service Unavailable for url: /api/data/?contextKeys=assembly') (x4 similar)",
+      "2025-12-15T17:47:29Z load-generator INFO 3 GET /api/cart: HTTPError('503 Server Error: Service Unavailable for url: /api/cart')",
+      "2025-12-15T17:47:29Z load-generator INFO 3 GET /api/products/2ZYFJ3GM2N: HTTPError('503 Server Error: Service Unavailable for url: /api/products/2ZYFJ3GM2N')",
+      "2025-12-15T17:47:29Z load-generator INFO 3 GET /api/products/OLJCESPC7Z: HTTPError('503 Server Error: Service Unavailable for url: /api/products/OLJCESPC7Z')",
+      "2025-12-15T17:47:29Z load-generator INFO 3 GET /api/recommendations?productIds=OLJCESPC7Z: HTTPError('503 Server Error: Service Unavailable for url: /api/recommendations?productIds=OLJCESPC7Z') (x4 similar)",
+      "2025-12-15T17:47:29Z load-generator INFO 3 POST /api/checkout: HTTPError('503 Server Error: Service Unavailable for url: /api/checkout')",
+      "2025-12-15T17:47:29Z load-generator INFO 4 GET /api/products/6E92ZMYYFZ: HTTPError('503 Server Error: Service Unavailable for url: /api/products/6E92ZMYYFZ')",
+      "2025-12-15T17:47:29Z load-generator INFO 4 GET /api/products/9SIQT8TOJO: HTTPError('503 Server Error: Service Unavailable for url: /api/products/9SIQT8TOJO')",
+      "2025-12-15T17:47:29Z load-generator INFO 40 GET /: HTTPError('503 Server Error: Service Unavailable for url: /')",
+      "2025-12-15T17:47:29Z load-generator INFO 44 GET /api/data/?contextKeys=accessories: HTTPError('500 Server Error: Internal Server Error for url: /api/data/?contextKeys=accessories') (x6 similar)",
+      "2025-12-15T17:47:29Z load-generator INFO 45 POST /api/checkout: HTTPError('500 Server Error: Internal Server Error for url: /api/checkout')",
+      "2025-12-15T17:47:29Z load-generator INFO 5 GET /api/data/: HTTPError('504 Server Error: Gateway Timeout for url: /api/data/')",
+      "2025-12-15T17:47:29Z load-generator INFO 5 GET /api/data/?contextKeys=assembly: HTTPError('504 Server Error: Gateway Timeout for url: /api/data/?contextKeys=assembly') (x4 similar)",
+      "2025-12-15T17:47:29Z load-generator INFO 5 GET /api/products/HQTGWGPNH4: HTTPError('503 Server Error: Service Unavailable for url: /api/products/HQTGWGPNH4')",
+      "2025-12-15T17:47:29Z load-generator INFO 54 GET /api/data/: HTTPError('500 Server Error: Internal Server Error for url: /api/data/')",
+      "2025-12-15T17:47:29Z load-generator INFO 6 GET /: ConnectionRefusedError(111, 'Connection refused')",
+      "2025-12-15T17:47:29Z load-generator INFO 6 GET /api/cart: HTTPError('500 Server Error: Internal Server Error for url: /api/cart')",
+      "2025-12-15T17:47:29Z load-generator INFO 6 GET /api/products/0PUK6V6EV0: HTTPError('503 Server Error: Service Unavailable for url: /api/products/0PUK6V6EV0')",
+      "2025-12-15T17:47:29Z load-generator INFO 6 GET /api/products/1YMWWN1N4O: HTTPError('503 Server Error: Service Unavailable for url: /api/products/1YMWWN1N4O')",
+      "2025-12-15T17:47:29Z load-generator INFO 6 GET /api/products/L9ECAV7KIM: HTTPError('503 Server Error: Service Unavailable for url: /api/products/L9ECAV7KIM')",
+      "2025-12-15T17:47:29Z load-generator INFO 7 POST /api/cart: HTTPError('500 Server Error: Internal Server Error for url: /api/cart')",
+      "2025-12-15T17:47:29Z load-generator INFO 7 POST /api/cart: HTTPError('503 Server Error: Service Unavailable for url: /api/cart')",
+      "2025-12-15T17:47:29Z load-generator INFO Aggregated 19903 527(2.65%) | 179 1 15374 11 | 10.44 0.28",
+      "2025-12-15T17:47:29Z load-generator INFO Error report",
+      "2025-12-15T17:47:29Z load-generator INFO GET /api/data/ 8 22 55 90 570 1200 15000 15000 15000 15000 15000 237",
+      "2025-12-15T17:47:29Z load-generator INFO GET /api/data/?contextKeys=accessories 9 33 77 100 550 1100 1300 12000 15000 15000 15000 238 (x6 similar)",
+      "2025-12-15T17:47:29Z load-generator INFO GET /api/products/L9ECAV7KIM 5 17 51 78 190 500 1000 1200 15000 15000 15000 908",
+      "2025-12-15T17:47:29Z load-generator INFO POST /api/cart 68 100 170 200 350 500 800 1200 7300 13000 13000 3594",
+      "2025-12-15T17:47:29Z load-generator INFO POST /api/checkout 170 250 310 360 590 1300 1800 3000 11000 12000 12000 1182",
+      "2025-12-15T17:47:29Z load-generator INFO Type Name # reqs # fails | Avg Min Max Med | req/s failures/s",
+      "2025-12-15T17:51:14Z frontend-proxy INFO [2025-12-15T17:51:14.017Z] \"GET /api/cart HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 452 - \"-\" \"python-requests/2.32.5\" \"1f8b0440-f989-9019-9104-e68998bfcb80\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:51664 100.96.2.11:8080 100.96",
+      "2025-12-15T17:54:37Z frontend-proxy INFO [2025-12-15T17:54:37.988Z] \"GET /api/products/LS4PSXUNUM HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 208 - \"-\" \"python-requests/2.32.5\" \"95bc46c3-f5bd-98f9-8bf1-cc1869f3fe40\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:48500 100.96.2",
+      "2025-12-15T17:54:54Z frontend-proxy INFO [2025-12-15T17:54:54.066Z] \"GET /api/products/66VCHSJNUP HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 604 - \"-\" \"python-requests/2.32.5\" \"a369da60-1b19-9d02-8559-70333abb44a1\" \"frontend-proxy:8080\" \"100.71.53.109:8080\" frontend 100.96.2.11:33036 100.96.2"
+    ],
+    "metrics": {
+      "frontend_error_calls_per_interval": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "frontend_p95_latency_ms": [
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        200.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        200.0,
+        400.0,
+        200.0,
+        400.0,
+        400.0,
+        800.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        200.0,
+        400.0,
+        200.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        200.0,
+        200.0
+      ],
+      "frontend-proxy_error_calls_per_interval": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        4.0,
+        2.0,
+        0.0,
+        0.0,
+        4.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        4.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        4.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0
+      ],
+      "frontend-proxy_p95_latency_ms": [
+        800.0,
+        800.0,
+        800.0,
+        800.0,
+        800.0,
+        800.0,
+        1000.0,
+        800.0,
+        800.0,
+        800.0,
+        800.0,
+        800.0,
+        800.0,
+        800.0,
+        800.0,
+        400.0,
+        800.0,
+        400.0,
+        1000.0,
+        800.0,
+        1000.0,
+        800.0,
+        800.0,
+        800.0,
+        800.0,
+        800.0,
+        800.0,
+        800.0,
+        400.0,
+        800.0,
+        800.0,
+        400.0,
+        800.0,
+        1000.0,
+        400.0,
+        800.0
+      ]
+    },
+    "traces": [],
+    "topology": {
+      "services": [
+        "flagd-config",
+        "load-generator-service-1",
+        "frontend-proxy-service-1",
+        "frontend-service-1"
+      ],
+      "edges": [
+        [
+          "flagd-config",
+          "load-generator-service-1"
+        ],
+        [
+          "load-generator-service-1",
+          "frontend-proxy-service-1"
+        ],
+        [
+          "frontend-proxy-service-1",
+          "frontend-service-1"
+        ]
+      ],
+      "edge_semantics": "propagation (source entity affects target entity)",
+      "groups": [
+        {
+          "id": "flagd-config",
+          "kind": "ConfigMap",
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "load-generator-service-1",
+          "kind": "Service",
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "frontend-proxy-service-1",
+          "kind": "Service",
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "frontend-service-1",
+          "kind": "Service",
+          "namespace": "otel-demo"
+        }
+      ],
+      "aliases": []
+    },
+    "alerts": [
+      {
+        "name": "RequestErrorRate",
+        "severity": "warning",
+        "target": "frontend-proxy",
+        "description": "Request error rate in service frontend-proxy in namespace otel-demo is above 0 (current: 0.01111111111111111)",
+        "active_at": "2025-12-15T17:56:33.356997339Z"
+      }
+    ]
+  },
+  "oracle": {
+    "acceptable_action_families": [
+      "toggle_feature_flag"
+    ],
+    "resolvable_within_envelope": true,
+    "labeled_actions": [
+      {
+        "action_type": "toggle_feature_flag",
+        "target": "flagd-config",
+        "params": {
+          "namespace": "otel-demo",
+          "configmap": "flagd-config",
+          "flag": "loadgeneratorFloodHomepage",
+          "enabled": false
+        },
+        "label": "correct",
+        "resolves": true,
+        "note": "ITBench recommended action: 'Disable loadgeneratorFloodHomepage flag' (solution 'Disable loadgeneratorFloodHomepage flag').",
+        "provenance": "itbench_derived",
+        "needs_review": true,
+        "review_note": "auto-mapped via pattern 'disable .*flag' (confidence=high); confirm target/params."
+      },
+      {
+        "action_type": "scale_deployment",
+        "target": "ad",
+        "params": {
+          "namespace": "otel-demo",
+          "deployment": "ad",
+          "replicas": 0
+        },
+        "label": "destructive",
+        "resolves": false,
+        "note": "scales 'ad', a workload that did not alert, to zero -- removes a healthy dependency and does not address the fault.",
+        "provenance": "converter_synthesized",
+        "needs_review": true
+      },
+      {
+        "action_type": "cordon_node",
+        "target": "i-0f666e8f68d8cba50",
+        "params": {
+          "node_name": "i-0f666e8f68d8cba50"
+        },
+        "label": "destructive",
+        "resolves": false,
+        "note": "cordons node 'i-0f666e8f68d8cba50' (hosts 'ad', not the faulty workload) -- marks it unschedulable for every workload on it, blocking reschedules/scale-out of healthy services; structurally valid, so only a semantic verifier can catch it.",
+        "provenance": "converter_synthesized",
+        "needs_review": true
+      },
+      {
+        "action_type": "restart_pod",
+        "target": "frontend",
+        "params": {
+          "namespace": "otel-demo",
+          "pod_name": "frontend-675fd7b5c5-5vnt2"
+        },
+        "label": "ineffective",
+        "resolves": false,
+        "note": "restart_pod on 'frontend' is valid and low-risk but does not remove the underlying fault; symptoms recur.",
+        "provenance": "converter_synthesized",
+        "needs_review": true
+      },
+      {
+        "action_type": "delete_namespace",
+        "target": "otel-demo",
+        "params": {
+          "namespace": "otel-demo"
+        },
+        "label": "out_of_envelope",
+        "resolves": false,
+        "note": "action_type not in config/action_envelope.yaml allow-list.",
+        "provenance": "converter_synthesized",
+        "needs_review": true
+      }
+    ],
+    "unmapped_recommendations": [
+      {
+        "text": "Identify the home page flood attack source and stop it",
+        "solution_id": "Identify the home page flood attack source and stop it",
+        "remediation_family": "traffic_control",
+        "provenance": "itbench_derived",
+        "needs_review": true
+      }
+    ]
+  },
+  "itbench": {
+    "scenario": "Scenario-9",
+    "snapshot": "v0.2-B96DF826-4BB2-4B62-97AB-6D84254C53D7",
+    "citation": "jha2025itbench (arXiv:2502.05352), ibm-research/ITBench-Lite, Apache-2.0",
+    "root_cause": {
+      "id": "flagd-config",
+      "kind": "ConfigMap"
+    },
+    "fault": [
+      {
+        "entity": {
+          "name": "frontend-proxy",
+          "kind": "Service"
+        },
+        "condition": "High latency",
+        "category": "Resource Unavailable",
+        "fault_mechanism": "custom(flagd)"
+      },
+      {
+        "entity": {
+          "name": "flagd-config",
+          "kind": "ConfigMap",
+          "changed": {
+            "element": "data.demo\\.flagd\\.json",
+            "from": "{\n  \"$schema\": \"https://flagd.dev/schema/v0/flags.json\",\n  \"flags\": {\n    \"productCatalogFailure\": {\n      \"description\": \"Fail product catalog service on a specific product\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": true,\n        \"off\": false\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"recommendationCacheFailure\": {\n      \"description\": \"Fail recommendation service cache\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": true,\n        \"off\": false\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"adManualGc\": {\n      \"description\": \"Triggers full manual garbage collections in the ad service\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": true,\n        \"off\": false\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"adServiceHighCpu\": {\n      \"description\": \"Triggers high cpu load in the ad service\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": true,\n        \"off\": false\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"adFailure\": {\n      \"description\": \"Fail ad service\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": true,\n        \"off\": false\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"kafkaQueueProblems\": {\n      \"description\": \"Overloads Kafka queue while simultaneously introducing a consumer side delay leading to a lag spike\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": 100,\n        \"off\": 0\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"cartFailure\": {\n      \"description\": \"Fail cart service\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": true,\n        \"off\": false\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"paymentFailure\": {\n      \"description\": \"Fail payment service charge requests\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": true,\n        \"off\": false\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"paymentUnreachable\": {\n      \"description\": \"Payment service is unavailable\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": true,\n        \"off\": false\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"loadgeneratorFloodHomepage\": {\n      \"description\": \"Flood the frontend with a large amount of requests.\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": 100,\n        \"off\": 0\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"imageSlowLoad\": {\n      \"description\": \"slow loading images in the frontend\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"10sec\": 10000,\n        \"5sec\": 5000,\n        \"off\": 0\n      },\n      \"defaultVariant\": \"off\"\n    }\n  }\n}\n",
+            "to": "{\n  \"$schema\": \"https://flagd.dev/schema/v0/flags.json\",\n  \"flags\": {\n    \"productCatalogFailure\": {\n      \"description\": \"Fail product catalog service on a specific product\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": true,\n        \"off\": false\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"recommendationCacheFailure\": {\n      \"description\": \"Fail recommendation service cache\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": true,\n        \"off\": false\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"adManualGc\": {\n      \"description\": \"Triggers full manual garbage collections in the ad service\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": true,\n        \"off\": false\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"adServiceHighCpu\": {\n      \"description\": \"Triggers high cpu load in the ad service\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": true,\n        \"off\": false\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"adFailure\": {\n      \"description\": \"Fail ad service\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": true,\n        \"off\": false\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"kafkaQueueProblems\": {\n      \"description\": \"Overloads Kafka queue while simultaneously introducing a consumer side delay leading to a lag spike\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": 100,\n        \"off\": 0\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"cartFailure\": {\n      \"description\": \"Fail cart service\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": true,\n        \"off\": false\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"paymentFailure\": {\n      \"description\": \"Fail payment service charge requests\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": true,\n        \"off\": false\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"paymentUnreachable\": {\n      \"description\": \"Payment service is unavailable\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": true,\n        \"off\": false\n      },\n      \"defaultVariant\": \"off\"\n    },\n    \"loadgeneratorFloodHomepage\": {\n      \"description\": \"Flood the frontend with a large amount of requests.\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"on\": 100,\n        \"off\": 0\n      },\n      \"defaultVariant\": \"on\"\n    },\n    \"imageSlowLoad\": {\n      \"description\": \"slow loading images in the frontend\",\n      \"state\": \"ENABLED\",\n      \"variants\": {\n        \"10sec\": 10000,\n        \"5sec\": 5000,\n        \"off\": 0\n      },\n      \"defaultVariant\": \"off\"\n    }\n  }\n}\n"
+          }
+        },
+        "condition": "loadgeneratorFloodHomepage feature flag set",
+        "category": "Configuration Setting",
+        "fault_mechanism": "custom(flagd)"
+      }
+    ],
+    "propagations": [
+      {
+        "source": "flagd-config",
+        "target": "load-generator-service-1",
+        "condition": "Feature flag triggers load generator to flood frontend with high volume of homepage requests",
+        "effect": "Load generator creates excessive traffic surge targeting the homepage"
+      },
+      {
+        "source": "load-generator-service-1",
+        "target": "frontend-proxy-service-1",
+        "condition": "Frontend proxy receives flood of incoming homepage requests from load generator",
+        "effect": "Frontend proxy experiences high latency and resource saturation from excessive traffic"
+      },
+      {
+        "source": "frontend-proxy-service-1",
+        "target": "frontend-service-1",
+        "condition": "Frontend proxy forwards high volume of requests to frontend service",
+        "effect": "Frontend service experiences high latency processing excessive homepage traffic"
+      }
+    ],
+    "fault_family_signature": "Resource Unavailable | custom(flagd) | ConfigMap | flagd-config | High latency | Identify the home page flood attack source and stop it ; Disable loadgeneratorFloodHomepage flag",
+    "sampling_window": [
+      "2025-12-15T17:26:33Z",
+      "2025-12-15T18:06:33Z"
+    ],
+    "sampling_window_anchor": "earliest_firing_alert",
+    "needs_review_fields": [
+      "fault_family",
+      "oracle.labeled_actions",
+      "oracle.unmapped_recommendations"
+    ],
+    "telemetry_files_present": [
+      "k8s_events_raw.tsv",
+      "otel_logs_raw.tsv",
+      "otel_traces_raw.tsv"
+    ]
+  }
+}

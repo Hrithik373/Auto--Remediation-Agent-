@@ -75,6 +75,9 @@ class EnvelopeVerifier(Verifier):
                 violations.append(f"param '{name}' must be {rule.get('type')}, got {type(value).__name__}")
                 continue
 
+            if "enum" in rule and value not in rule["enum"]:
+                violations.append(f"param '{name}'={value!r} is not one of the allowed values {rule['enum']}")
+                continue
             if "min" in rule and value < rule["min"]:
                 violations.append(f"param '{name}'={value} is below minimum {rule['min']}")
             if "max" in rule and value > rule["max"]:

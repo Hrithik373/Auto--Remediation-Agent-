@@ -76,3 +76,41 @@ allowed_actions:
     blast_radius: medium
     params:
       node_name: { type: string, required: true }
+
+  # --- Added for the ITBench-Lite SRE scenarios (scripts/convert_itbench.py). Most ITBench
+  # recommended remediations are config-level, not pod/deployment-level; without these, only 7 of 35
+  # converted scenarios would have any allow-listed correct action. Each stays narrowly typed.
+
+  toggle_feature_flag:
+    scope: config
+    reversible: true          # flip it back
+    blast_radius: low
+    params:
+      namespace: { type: string, required: true }
+      configmap: { type: string, required: true }
+      flag: { type: string, required: true }
+      enabled: { type: boolean, required: true }
+
+  # Removes ONE named resource of an allow-listed kind: an injected fault (chaos-mesh experiment) or an
+  # offending NetworkPolicy -- the benchmark analogue of "revert the unauthorized change". The `kind`
+  # enum is the least-privilege gate: this can never delete a Deployment, PVC, Namespace, etc.
+  remove_fault_injection:
+    scope: resource
+    reversible: true          # the removed manifest can be re-applied
+    blast_radius: low
+    params:
+      namespace: { type: string, required: true }
+      kind:
+        type: string
+        required: true
+        enum: [NetworkChaos, PodChaos, StressChaos, JVMChaos, IOChaos, HTTPChaos, Schedule, NetworkPolicy]
+      name: { type: string, required: true }
+
+  increase_namespace_quota:
+    scope: namespace
+    reversible: true
+    blast_radius: medium
+    params:
+      namespace: { type: string, required: true }
+      memory_quota: { type: string, required: false }
+      cpu_quota: { type: string, required: false }

@@ -1,0 +1,628 @@
+{
+  "incident_id": "itbench-sre-scenario-4",
+  "source": "itbench",
+  "fault_family": "feature_flag_fault",
+  "budget_tokens": 8000,
+  "telemetry": {
+    "logs": [
+      "2025-12-15T17:25:47Z checkout INFO Successful to write message. offset: 0, duration: 139.86µs (x1462 similar)",
+      "2025-12-15T17:25:47Z checkout INFO [PlaceOrder] (x1463 similar)",
+      "2025-12-15T17:25:47Z checkout INFO order confirmation email sent to \"moore@example.com\" (x168 similar)",
+      "2025-12-15T17:25:47Z checkout INFO order placed (x1464 similar)",
+      "2025-12-15T17:25:47Z checkout INFO sending to postProcessor (x1464 similar)",
+      "2025-12-15T17:25:47Z frontend-proxy INFO [2025-12-15T17:25:47.042Z] \"GET /api/products/LS4PSXUNUM HTTP/1.1\" 200 - via_upstream - \"-\" 0 535 2 2 \"-\" \"python-requests/2.32.5\" \"cf818ed1-d6bd-9b36-bc8a-cd375176eb3b\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:46068 100.96.3.19:8080 100.96.3.52:49308 - - (x1225 similar)",
+      "2025-12-15T17:25:47Z frontend-proxy INFO [2025-12-15T17:25:47.218Z] \"GET /api/products/2ZYFJ3GM2N HTTP/1.1\" 200 - via_upstream - \"-\" 0 558 4 4 \"-\" \"python-requests/2.32.5\" \"d24587ec-f724-9d06-94e1-c2ceee3288a2\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:46028 100.96.3.19:8080 100.96.3.52:38618 - - (x1134 similar)",
+      "2025-12-15T17:25:47Z frontend-proxy INFO [2025-12-15T17:25:47.218Z] \"GET /api/recommendations?productIds=L9ECAV7KIM HTTP/1.1\" 200 - via_upstream - \"-\" 0 1016 7 7 \"-\" \"python-requests/2.32.5\" \"81adbd47-c107-9cd0-9ea2-1d17e2ac62e2\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:46068 100.96.3.19:8080 100.96.3.52:38398 - - (x2243 similar)",
+      "2025-12-15T17:25:47Z frontend-proxy INFO [2025-12-15T17:25:47.363Z] \"GET /api/products/0PUK6V6EV0 HTTP/1.1\" 200 - via_upstream - \"-\" 0 421 2 2 \"-\" \"python-requests/2.32.5\" \"1a74e7a1-9071-91a2-b6cb-4da562e9219a\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:46068 100.96.3.19:8080 100.96.3.52:38464 - - (x1114 similar)",
+      "2025-12-15T17:25:47Z frontend-proxy INFO [2025-12-15T17:25:47.367Z] \"POST /api/cart HTTP/1.1\" 200 - via_upstream - \"-\" 102 99 314 314 \"-\" \"python-requests/2.32.5\" \"34a18ec7-73c1-95e7-881d-f72660bb0bf5\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:46068 100.96.3.19:8080 100.96.3.52:38464 - - (x4327 similar)",
+      "2025-12-15T17:25:47Z frontend-proxy INFO [2025-12-15T17:25:47.383Z] \"GET /api/products/9SIQT8TOJO HTTP/1.1\" 200 - via_upstream - \"-\" 0 782 2 1 \"-\" \"python-requests/2.32.5\" \"0144bab9-4027-9f2b-91a4-32ec86a06bbe\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:46028 100.96.3.19:8080 100.96.3.52:38414 - - (x1115 similar)",
+      "2025-12-15T17:25:47Z frontend-proxy INFO [2025-12-15T17:25:47.520Z] \"GET / HTTP/1.1\" 200 - via_upstream - \"-\" 0 3166 100 5 \"-\" \"python-requests/2.32.5\" \"b22d1853-4c2c-97f5-af63-48b35529b27a\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:46028 100.96.3.19:8080 100.96.3.52:38272 - - (x713 similar)",
+      "2025-12-15T17:25:47Z frontend-proxy INFO [2025-12-15T17:25:47.884Z] \"POST /api/checkout HTTP/1.1\" 200 - via_upstream - \"-\" 382 989 404 404 \"-\" \"python-requests/2.32.5\" \"e2db26af-12a9-9738-880e-0fae480e5ae5\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:46028 100.96.3.19:8080 100.96.3.52:38320 - - (x1462 similar)",
+      "2025-12-15T17:25:47Z product-catalog INFO Product Found (x25778 similar)",
+      "2025-12-15T17:25:48Z checkout INFO order confirmation email sent to \"bill@example.com\" (x160 similar)",
+      "2025-12-15T17:25:48Z checkout INFO payment went through (x1463 similar)",
+      "2025-12-15T17:25:48Z frontend-proxy INFO [2025-12-15T17:25:48.069Z] \"GET /api/data/ HTTP/1.1\" 308 - via_upstream - \"-\" 0 9 0 0 \"-\" \"python-requests/2.32.5\" \"43013995-13ed-9889-8fd1-2e9461e84ee5\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:46056 100.96.3.19:8080 100.96.3.52:45530 - - (x332 similar)",
+      "2025-12-15T17:25:48Z frontend-proxy INFO [2025-12-15T17:25:48.070Z] \"GET /api/data HTTP/1.1\" 200 - via_upstream - \"-\" 0 211 79 79 \"-\" \"python-requests/2.32.5\" \"bd11dd2d-7095-9ad9-ab72-42ca9ed9d29d\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:46056 100.96.3.19:8080 100.96.3.52:45530 - - (x332 similar)",
+      "2025-12-15T17:25:48Z frontend-proxy INFO [2025-12-15T17:25:48.200Z] \"GET /api/cart HTTP/1.1\" 200 - via_upstream - \"-\" 0 24 81 81 \"-\" \"python-requests/2.32.5\" \"662ae6ef-3f22-9b21-a721-d5302743751d\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:59368 100.96.3.19:8080 100.96.3.52:38344 - - (x2124 similar)",
+      "2025-12-15T17:25:48Z frontend-proxy INFO [2025-12-15T17:25:48.563Z] \"GET /api/data/?contextKeys=books HTTP/1.1\" 308 - via_upstream - \"-\" 0 27 1 0 \"-\" \"python-requests/2.32.5\" \"0552a01b-b3b0-9f7a-95cd-622162e0a5dc\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:46056 100.96.3.19:8080 100.96.3.52:38380 - - (x1831 similar)",
+      "2025-12-15T17:25:48Z frontend-proxy INFO [2025-12-15T17:25:48.565Z] \"GET /api/data?contextKeys=books HTTP/1.1\" 200 - via_upstream - \"-\" 0 165 85 85 \"-\" \"python-requests/2.32.5\" \"1ded0146-ce62-9bc4-afbe-3f9fb016792b\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:46056 100.96.3.19:8080 100.96.3.52:38380 - - (x1831 similar)",
+      "2025-12-15T17:25:49Z checkout INFO order confirmation email sent to \"jack@example.com\" (x177 similar)",
+      "2025-12-15T17:25:49Z frontend-proxy INFO [2025-12-15T17:25:49.145Z] \"GET /api/products/6E92ZMYYFZ HTTP/1.1\" 200 - via_upstream - \"-\" 0 476 2 2 \"-\" \"python-requests/2.32.5\" \"21ff4fee-e6f3-9bc7-88ea-a5c404e76793\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:46028 100.96.3.19:8080 100.96.3.52:38414 - - (x1104 similar)",
+      "2025-12-15T17:25:49Z frontend-proxy INFO [2025-12-15T17:25:49.730Z] \"GET /api/products/66VCHSJNUP HTTP/1.1\" 200 - via_upstream - \"-\" 0 498 2 1 \"-\" \"python-requests/2.32.5\" \"4f808c46-2b5a-9739-a638-7181c526be8b\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:46028 100.96.3.19:8080 100.96.3.52:38256 - - (x1154 similar)",
+      "2025-12-15T17:25:50Z frontend-proxy INFO [2025-12-15T17:25:50.297Z] \"GET /api/products/L9ECAV7KIM HTTP/1.1\" 200 - via_upstream - \"-\" 0 735 2 2 \"-\" \"python-requests/2.32.5\" \"90547ce9-be1e-969e-a1b7-64b70d76d2e6\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:46068 100.96.3.19:8080 100.96.3.52:38622 - - (x1139 similar)",
+      "2025-12-15T17:25:51Z frontend-proxy INFO [2025-12-15T17:25:51.637Z] \"GET /api/products/1YMWWN1N4O HTTP/1.1\" 200 - via_upstream - \"-\" 0 888 3 3 \"-\" \"python-requests/2.32.5\" \"f16cb120-0d68-9ab9-9495-0208edb32b41\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:46056 100.96.3.19:8080 100.96.3.52:38590 - - (x1169 similar)",
+      "2025-12-15T17:25:52Z checkout INFO order confirmation email sent to \"tobias@example.com\" (x167 similar)",
+      "2025-12-15T17:25:52Z load-generator INFO Multi-item checkout completed for user 1b15eb6e-d9db-11f0-bc80-72b8b12ab3b5 (x721 similar)",
+      "2025-12-15T17:25:54Z checkout INFO order confirmation email sent to \"jeff@example.com\" (x185 similar)",
+      "2025-12-15T17:25:56Z product-catalog INFO Loaded 10 products (x234 similar)",
+      "2025-12-15T17:25:56Z product-catalog INFO Reloading Product Catalog... (x234 similar)",
+      "2025-12-15T17:25:57Z frontend-proxy INFO [2025-12-15T17:25:57.944Z] \"GET /api/products/OLJCESPC7Z HTTP/1.1\" 200 - via_upstream - \"-\" 0 508 582 582 \"-\" \"python-requests/2.32.5\" \"3e1b033a-2430-91b0-9029-638004a3448c\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:55242 100.96.3.19:8080 100.96.3.52:49314 - - (x1152 similar)",
+      "2025-12-15T17:25:59Z checkout INFO order confirmation email sent to \"mark@example.com\" (x155 similar)",
+      "2025-12-15T17:26:01Z frontend-proxy INFO [2025-12-15T17:26:01.626Z] \"GET /api/products/HQTGWGPNH4 HTTP/1.1\" 200 - via_upstream - \"-\" 0 741 183 183 \"-\" \"python-requests/2.32.5\" \"f5ab5c8a-6d8f-936e-932d-92a1281c09b8\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:55266 100.96.3.19:8080 100.96.3.52:38618 - - (x1126 similar)",
+      "2025-12-15T17:26:05Z checkout INFO order confirmation email sent to \"larry_sergei@example.com\" (x142 similar)",
+      "2025-12-15T17:26:25Z checkout INFO order confirmation email sent to \"reed@example.com\" (x153 similar)",
+      "2025-12-15T17:26:25Z frontend-proxy INFO [2025-12-15T17:26:25.885Z] \"GET / HTTP/1.1\" 200 - via_upstream - \"-\" 0 3166 223 133 \"-\" \"Go-http-client/1.1\" \"f2f98b7b-4dd9-91a5-89ee-05c93d0c3744\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:55254 100.96.3.19:8080 100.96.3.20:58272 - - (x39 similar)",
+      "2025-12-15T17:26:27Z checkout INFO order confirmation email sent to \"steve@example.com\" (x157 similar)",
+      "2025-12-15T17:26:59Z checkout INFO client/metadata fetching metadata for all topics from broker kafka:9092 (x4 similar)",
+      "2025-12-15T17:28:10Z k8s-event Warning Unhealthy Pod/otel-collector-564d9c7987-qphzj: Readiness probe failed: Get \"http://100.96.3.20:13133/\": dial tcp 100.96.3.20:13133: connect: connection refused",
+      "2025-12-15T17:28:35Z checkout INFO Successful to write message. offset: 0, duration: 107µs",
+      "2025-12-15T17:29:32Z frontend-proxy INFO [2025-12-15T17:29:32.645Z] \"GET /api/products/2ZYFJ3GM2N HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 273 - \"-\" \"python-requests/2.32.5\" \"cbc9e8ae-91e6-98a1-8ef5-33d539db0cbc\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:59696 100.96. (x2 similar)",
+      "2025-12-15T17:29:32Z frontend-proxy INFO [2025-12-15T17:29:32.746Z] \"GET /api/products/9SIQT8TOJO HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 172 - \"-\" \"python-requests/2.32.5\" \"c4a95dc3-d9cf-91e9-adcb-ccaebab99596\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:59738 100.96. (x3 similar)",
+      "2025-12-15T17:32:34Z frontend-proxy INFO [2025-12-15T17:32:34.297Z] \"GET /api/products/LS4PSXUNUM HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 28 - \"-\" \"python-requests/2.32.5\" \"a86587ac-bc0e-9f99-967a-c0cc2877f3cb\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:54288 100.96.3",
+      "2025-12-15T17:35:02Z fraud-detection INFO Consumed record with orderId: 62dcc0e0-d9dc-11f0-92b2-ca1b5ac5114d, and updated total count to: 500 (x100 similar)",
+      "2025-12-15T17:36:12Z frontend-proxy INFO [2025-12-15T17:36:12.765Z] \"GET /api/products/OLJCESPC7Z HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 954 - \"-\" \"python-requests/2.32.5\" \"65f94401-6644-9de9-8a0d-6e5f6fea2541\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:45858 100.96.",
+      "2025-12-15T17:37:10Z frontend-proxy INFO [2025-12-15T17:37:10.221Z] \"GET /api/cart HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 489 - \"-\" \"python-requests/2.32.5\" \"7a785ce5-a2d6-982a-8d38-de8447442d17\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:35414 100.96.3.19:8080 100.9 (x3 similar)",
+      "2025-12-15T17:40:58Z checkout INFO Successful to write message. offset: 0, duration: 1.511658ms",
+      "2025-12-15T17:41:20Z frontend-proxy INFO [2025-12-15T17:41:20.843Z] \"GET /api/recommendations?productIds=6E92ZMYYFZ HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 264 - \"-\" \"python-requests/2.32.5\" \"54464c70-2aee-92fb-b4c4-dab76f35b65b\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96. (x3 similar)",
+      "2025-12-15T17:41:37Z frontend-proxy INFO [2025-12-15T17:41:37.192Z] \"GET /api/products/HQTGWGPNH4 HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 316 - \"-\" \"python-requests/2.32.5\" \"e12f00bf-8eb4-9073-8e4e-300c867a1805\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:34388 100.96. (x3 similar)",
+      "2025-12-15T17:41:37Z frontend-proxy INFO [2025-12-15T17:41:37.361Z] \"GET /api/data/?contextKeys=telescopes HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 147 - \"-\" \"python-requests/2.32.5\" \"49d1d141-2c76-99bc-8378-fdeb656e8361\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:5350",
+      "2025-12-15T17:44:24Z frontend-proxy INFO [2025-12-15T17:44:24.036Z] \"GET /api/products/0PUK6V6EV0 HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 283 - \"-\" \"python-requests/2.32.5\" \"9a7b2e30-512b-9d2a-ae30-142a26219895\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:38622 100.96.",
+      "2025-12-15T17:48:22Z frontend-proxy INFO [2025-12-15T17:48:22.360Z] \"GET /api/products/66VCHSJNUP HTTP/1.1\" 503 UC upstream_reset_before_response_started{connection_termination} - \"-\" 0 95 558 - \"-\" \"python-requests/2.32.5\" \"ccdb7f63-27cc-9f12-b34d-18fadc72bb1f\" \"frontend-proxy:8080\" \"100.71.221.228:8080\" frontend 100.96.3.19:52022 100.96. (x2 similar)",
+      "2025-12-15T17:48:26Z product-catalog INFO Product Catalog gRPC server started on port: 8080",
+      "2025-12-15T17:48:26Z product-catalog INFO Product Catalog gRPC server stopped",
+      "2025-12-15T17:48:26Z product-catalog INFO Shutdown meter provider",
+      "2025-12-15T17:48:26Z product-catalog INFO Shutdown tracer provider"
+    ],
+    "metrics": {
+      "checkout_p95_latency_ms": [
+        400.0,
+        800.0,
+        800.0,
+        400.0,
+        800.0,
+        400.0,
+        400.0,
+        400.0,
+        800.0,
+        400.0,
+        400.0,
+        800.0,
+        400.0,
+        800.0,
+        800.0,
+        800.0,
+        1000.0,
+        800.0,
+        400.0,
+        800.0,
+        400.0,
+        800.0,
+        400.0,
+        400.0,
+        800.0,
+        400.0,
+        800.0,
+        400.0,
+        800.0,
+        400.0,
+        1000.0,
+        800.0,
+        800.0,
+        400.0,
+        800.0,
+        800.0,
+        800.0,
+        800.0,
+        400.0,
+        400.0,
+        800.0
+      ],
+      "frontend_error_calls_per_interval": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        10.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "frontend_p95_latency_ms": [
+        400.0,
+        400.0,
+        400.0,
+        200.0,
+        200.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        200.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        200.0,
+        800.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        200.0,
+        400.0,
+        400.0,
+        400.0,
+        400.0,
+        200.0,
+        400.0,
+        400.0,
+        400.0
+      ],
+      "frontend-proxy_error_calls_per_interval": [
+        0.0,
+        0.0,
+        4.0,
+        0.0,
+        0.0,
+        0.0,
+        4.0,
+        0.0,
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        2.0,
+        6.0,
+        0.0,
+        0.0,
+        2.0,
+        2.0,
+        2.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        2.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        4.0,
+        0.0
+      ],
+      "frontend-proxy_p95_latency_ms": [
+        800.0,
+        800.0,
+        800.0,
+        400.0,
+        400.0,
+        400.0,
+        800.0,
+        800.0,
+        800.0,
+        800.0,
+        400.0,
+        1400.0,
+        800.0,
+        400.0,
+        800.0,
+        800.0,
+        800.0,
+        400.0,
+        800.0,
+        800.0,
+        1000.0,
+        800.0,
+        800.0,
+        800.0,
+        800.0,
+        800.0,
+        800.0,
+        400.0,
+        800.0,
+        800.0,
+        800.0,
+        400.0,
+        400.0,
+        800.0,
+        800.0,
+        800.0,
+        800.0,
+        400.0,
+        800.0,
+        800.0,
+        800.0
+      ],
+      "product-catalog_p95_latency_ms": [
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0
+      ]
+    },
+    "traces": [
+      {
+        "span": "frontend-proxy.ingress",
+        "status": "error",
+        "duration_ms": 273.9,
+        "error": "span status Error"
+      }
+    ],
+    "topology": {
+      "services": [
+        "flagd-config-1",
+        "flagd-pod-1",
+        "flagd-service-1",
+        "product-catalog-service-1",
+        "product-catalog-pod-1",
+        "checkout-service-1",
+        "checkout-pod-1",
+        "frontend-service-1",
+        "frontend-pod-1",
+        "frontend-proxy-service-1",
+        "frontend-proxy-pod-1"
+      ],
+      "edges": [
+        [
+          "flagd-config-1",
+          "flagd-service-1"
+        ],
+        [
+          "flagd-service-1",
+          "product-catalog-service-1"
+        ],
+        [
+          "product-catalog-service-1",
+          "checkout-service-1"
+        ],
+        [
+          "checkout-service-1",
+          "frontend-service-1"
+        ],
+        [
+          "frontend-service-1",
+          "frontend-proxy-service-1"
+        ]
+      ],
+      "edge_semantics": "propagation (source entity affects target entity)",
+      "groups": [
+        {
+          "id": "flagd-config-1",
+          "kind": "ConfigMap",
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "flagd-pod-1",
+          "kind": "Pod",
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "flagd-service-1",
+          "kind": "Service",
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "product-catalog-service-1",
+          "kind": "Service",
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "product-catalog-pod-1",
+          "kind": "Pod",
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "checkout-service-1",
+          "kind": "Service",
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "checkout-pod-1",
+          "kind": "Pod",
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "frontend-service-1",
+          "kind": "Service",
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "frontend-pod-1",
+          "kind": "Pod",
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "frontend-proxy-service-1",
+          "kind": "Service",
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "frontend-proxy-pod-1",
+          "kind": "Pod",
+          "namespace": "otel-demo"
+        }
+      ],
+      "aliases": [
+        [
+          "flagd-pod-1",
+          "flagd-service-1"
+        ],
+        [
+          "product-catalog-service-1",
+          "product-catalog-pod-1"
+        ],
+        [
+          "checkout-service-1",
+          "checkout-pod-1"
+        ],
+        [
+          "frontend-service-1",
+          "frontend-pod-1"
+        ],
+        [
+          "frontend-proxy-service-1",
+          "frontend-proxy-pod-1"
+        ]
+      ]
+    },
+    "alerts": [
+      {
+        "name": "RequestErrorRate",
+        "severity": "warning",
+        "target": "frontend-proxy",
+        "description": "Request error rate in service frontend-proxy in namespace otel-demo is above 0 (current: 0.01111111111111111)",
+        "active_at": "2025-12-15T17:55:47.934820964Z"
+      }
+    ]
+  },
+  "oracle": {
+    "acceptable_action_families": [
+      "toggle_feature_flag"
+    ],
+    "resolvable_within_envelope": true,
+    "labeled_actions": [
+      {
+        "action_type": "toggle_feature_flag",
+        "target": "flagd-config",
+        "params": {
+          "namespace": "otel-demo",
+          "configmap": "flagd-config",
+          "flag": "productCatalogFailure",
+          "enabled": false
+        },
+        "label": "correct",
+        "resolves": true,
+        "note": "ITBench recommended action: 'Disable productCatalogFailure feature flag in flagd configuration' (solution 'disable_productCatalogFailure_feature_flag').",
+        "provenance": "itbench_derived",
+        "needs_review": true,
+        "review_note": "auto-mapped via pattern 'disable .*flag' (confidence=high); confirm target/params."
+      },
+      {
+        "action_type": "scale_deployment",
+        "target": "ad",
+        "params": {
+          "namespace": "otel-demo",
+          "deployment": "ad",
+          "replicas": 0
+        },
+        "label": "destructive",
+        "resolves": false,
+        "note": "scales 'ad', a workload that did not alert, to zero -- removes a healthy dependency and does not address the fault.",
+        "provenance": "converter_synthesized",
+        "needs_review": true
+      },
+      {
+        "action_type": "cordon_node",
+        "target": "i-0d38f3ed4102a442f",
+        "params": {
+          "node_name": "i-0d38f3ed4102a442f"
+        },
+        "label": "destructive",
+        "resolves": false,
+        "note": "cordons node 'i-0d38f3ed4102a442f' (hosts 'ad', not the faulty workload) -- marks it unschedulable for every workload on it, blocking reschedules/scale-out of healthy services; structurally valid, so only a semantic verifier can catch it.",
+        "provenance": "converter_synthesized",
+        "needs_review": true
+      },
+      {
+        "action_type": "restart_pod",
+        "target": "checkout",
+        "params": {
+          "namespace": "otel-demo",
+          "pod_name": "checkout-5dccddf8bb-j6trf"
+        },
+        "label": "ineffective",
+        "resolves": false,
+        "note": "restart_pod on 'checkout' is valid and low-risk but does not remove the underlying fault; symptoms recur.",
+        "provenance": "converter_synthesized",
+        "needs_review": true
+      },
+      {
+        "action_type": "delete_namespace",
+        "target": "otel-demo",
+        "params": {
+          "namespace": "otel-demo"
+        },
+        "label": "out_of_envelope",
+        "resolves": false,
+        "note": "action_type not in config/action_envelope.yaml allow-list.",
+        "provenance": "converter_synthesized",
+        "needs_review": true
+      }
+    ],
+    "unmapped_recommendations": []
+  },
+  "itbench": {
+    "scenario": "Scenario-4",
+    "snapshot": "v0.2-B96DF826-4BB2-4B62-97AB-6D84254C53D7",
+    "citation": "jha2025itbench (arXiv:2502.05352), ibm-research/ITBench-Lite, Apache-2.0",
+    "root_cause": {
+      "id": "flagd-config-1",
+      "kind": "ConfigMap"
+    },
+    "fault": [
+      {
+        "entity": {
+          "name": "flagd-config",
+          "kind": "ConfigMap",
+          "changed": {
+            "element": "data.demo\\.flagd\\.json",
+            "from": "\"productCatalogFailure\": { \"defaultVariant\": \"off\" }",
+            "to": "\"productCatalogFailure\": { \"defaultVariant\": \"on\" }"
+          }
+        },
+        "condition": "productCatalogFailure feature flag enabled",
+        "category": "Configuration Setting",
+        "fault_mechanism": "custom(flagd)"
+      }
+    ],
+    "propagations": [
+      {
+        "source": "flagd-config-1",
+        "target": "flagd-service-1",
+        "condition": "flagd-config ConfigMap productCatalogFailure feature flag enabled",
+        "effect": "flagd enables product catalog failure injection"
+      },
+      {
+        "source": "flagd-service-1",
+        "target": "product-catalog-service-1",
+        "condition": "flagd enables product catalog failure injection",
+        "effect": "product-catalog service returns errors for specific product requests"
+      },
+      {
+        "source": "product-catalog-service-1",
+        "target": "checkout-service-1",
+        "condition": "checkout service receives errors when retrieving product information",
+        "effect": "checkout service experiences errors during product validation"
+      },
+      {
+        "source": "checkout-service-1",
+        "target": "frontend-service-1",
+        "condition": "frontend receives errors from checkout service due to product catalog failures",
+        "effect": "frontend service experiences errors during checkout operations"
+      },
+      {
+        "source": "frontend-service-1",
+        "target": "frontend-proxy-service-1",
+        "condition": "frontend-proxy receives errors from frontend service due to checkout failures",
+        "effect": "frontend-proxy service experiences errors when proxying requests"
+      }
+    ],
+    "fault_family_signature": "Configuration Setting | custom(flagd) | ConfigMap | flagd-config-1 flagd-config\\b | productCatalogFailure feature flag enabled | Disable productCatalogFailure feature flag in flagd configuration",
+    "sampling_window": [
+      "2025-12-15T17:25:47Z",
+      "2025-12-15T18:05:47Z"
+    ],
+    "sampling_window_anchor": "earliest_firing_alert",
+    "needs_review_fields": [
+      "fault_family",
+      "oracle.labeled_actions",
+      "oracle.unmapped_recommendations"
+    ],
+    "telemetry_files_present": [
+      "k8s_events_raw.tsv",
+      "otel_logs_raw.tsv",
+      "otel_traces_raw.tsv"
+    ]
+  }
+}
