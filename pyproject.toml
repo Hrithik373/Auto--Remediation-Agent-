@@ -23,6 +23,7 @@ dependencies = [
     "pandas>=2.2",
     "numpy>=1.26",
     "httpx>=0.27",
+    "matplotlib>=3.8",   # make eval figures (imported lazily, only by eval/figures.py)
 ]
 
 [project.optional-dependencies]

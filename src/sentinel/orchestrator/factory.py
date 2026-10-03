@@ -78,4 +78,5 @@ def build_orchestrator(
         Executor(env, auto_execute=bool(config["execution"]["auto_execute"])),
         max_steps=config["budgets"]["max_steps"],
         config_hash=config_hash(resolved),
+        on_block=config["orchestrator"].get("on_block", "escalate"),
     )

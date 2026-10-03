@@ -55,6 +55,24 @@ execution:
 
 orchestrator:
   seed: 0
+  # What a BLOCK does: escalate (blueprint §5: page a human, end the run) | retry (feed the block
+  # reasons back to the agent; escalate only when it runs out of proposals/steps). Ablated in P4.
+  on_block: escalate
+
+# Phase P4 evaluation (`make eval`, scripts/run_eval.py). Runs use config/offline_eval.yaml on top.
+eval:
+  experiment: main
+  seeds: [0, 1, 2, 3, 4]
+  default_tau: 0.5
+  tau_grid: [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]
+  pareto_variants: [envelope, learned]          # + llm_judge when run with --with-llm
+  bootstrap_resamples: 1000                     # 95% CIs, resampling incidents (seeded)
+  output_dir: runs/eval
+  # Agent-quality ablation: the simulated planner's label mix, from a strong to a weak planner.
+  agent_mixes:
+    strong: { correct: 0.7, ineffective: 0.15, destructive: 0.1, out_of_envelope: 0.05 }
+    default: { correct: 0.45, ineffective: 0.25, destructive: 0.2, out_of_envelope: 0.1 }
+    weak: { correct: 0.2, ineffective: 0.3, destructive: 0.4, out_of_envelope: 0.1 }
 
 gateway:
   host: 0.0.0.0

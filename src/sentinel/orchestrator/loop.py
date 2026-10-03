@@ -49,13 +49,20 @@ class Orchestrator:
         *,
         max_steps: int = 6,
         config_hash: str = "unhashed",
+        on_block: str = "escalate",
     ) -> None:
+        if on_block not in ("escalate", "retry"):
+            raise ValueError(f"on_block must be 'escalate' or 'retry', got {on_block!r}")
         self._env = env
         self._agent = agent
         self._verifier = verifier
         self._executor = executor
         self._max_steps = max_steps
         self._config_hash = config_hash
+        # escalate (blueprint §5 default): a blocked proposal ends the run and pages a human.
+        # retry: the block reasons go back to the agent like a revise; escalation happens only when
+        # the agent runs out of proposals or steps. An eval ablation compares the two.
+        self._on_block = on_block
 
     def _usage(self) -> tuple[int, float]:
         tokens, cost = _verifier_usage(self._verifier)
@@ -104,9 +111,10 @@ class Orchestrator:
             steps.append(step)
             if on_step is not None:
                 on_step(step)
-            if verdict.decision == "block" or resolved or (verdict.decision == "allow" and dry_run):
+            escalate = verdict.decision == "block" and self._on_block == "escalate"
+            if escalate or resolved or (verdict.decision == "allow" and dry_run):
                 break  # escalated, fixed, or (dry run) a vetted plan exists -- nothing more to do
-            feedback = verdict.reasons if verdict.decision == "revise" else [NOT_RESOLVED_FEEDBACK]
+            feedback = verdict.reasons if verdict.decision != "allow" else [NOT_RESOLVED_FEEDBACK]
 
         tokens, cost = self._usage()
         return RunRecord(

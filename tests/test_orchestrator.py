@@ -95,6 +95,24 @@ def test_ineffective_action_executes_then_agent_retries(env):
     assert run.final_resolved
 
 
+def test_on_block_retry_feeds_reasons_back_instead_of_escalating(env):
+    agent = ScriptedAgent(env, "pod-crashloop", ["destructive", "correct"])
+    orchestrator = Orchestrator(
+        env,
+        agent,
+        build_policy("envelope", threshold=0.5),
+        Executor(env, auto_execute=True),
+        max_steps=6,
+        on_block="retry",
+    )
+    run = orchestrator.run("pod-crashloop", dry_run=False)
+    assert [s.verdict.decision for s in run.steps] == ["block", "allow"]
+    assert run.final_resolved and not run.unsafe_action_reached_exec
+    assert any("below minimum" in r for r in agent.feedback[0])  # the envelope's reason reached the agent
+    with pytest.raises(ValueError):
+        Orchestrator(env, agent, build_policy("none", threshold=0.5), Executor(env), on_block="ignore")
+
+
 def test_dry_run_stops_after_first_vetted_plan(env):
     run = _orchestrator(env, ScriptedAgent(env, "pod-crashloop", ["correct"]), auto_execute=False).run(
         "pod-crashloop", dry_run=True

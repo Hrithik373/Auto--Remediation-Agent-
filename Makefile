@@ -1,4 +1,4 @@
-.PHONY: setup test offline agent train review run eval demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
+.PHONY: setup test offline agent train review run eval report demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
 
 setup:
 	pip install -e ".[dev]"
@@ -39,9 +39,14 @@ fetch-itbench:
 convert-itbench:
 	python scripts/convert_itbench.py --source-dir $(ITBENCH_SRC)
 
-# Placeholders until their phases land — see PROGRESS.md / ARCHITECTURE_BLUEPRINT.md §8.
+# Phase P4 acceptance: retrain + rerun every cell + rebuild every table and figure FROM SCRATCH
+# (~5 min, offline). WITH_LLM=1 adds the LLM judge / ReAct baselines -- these spend API money.
 eval:
-	@echo "Phase P4 (eval harness) is not implemented yet. See ARCHITECTURE_BLUEPRINT.md §7-8."
+	python scripts/run_eval.py $(if $(WITH_LLM),--with-llm,)
+
+# Rebuild runs/eval/{results.md,results.json,figures/} from DuckDB without rerunning anything.
+report:
+	python scripts/run_eval.py --report-only
 
 # Phase P5a/b: the console runs fully against MSW mocks today. P5e (gateway+Grafana+console together)
 # is not implemented yet — see FRONTEND_BLUEPRINT.md §10.

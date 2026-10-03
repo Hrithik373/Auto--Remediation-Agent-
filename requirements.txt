@@ -13,6 +13,8 @@ xgboost>=2.0
 pandas>=2.2
 numpy>=1.26
 httpx>=0.27
+matplotlib>=3.8
+huggingface_hub>=0.24   # only scripts/fetch_itbench.py
 
 # dev
 pytest>=8.0

@@ -109,6 +109,69 @@ class DuckDBStore:
             con.execute("COMMIT")
         return run_id
 
+    def write_runs(self, batch: list[tuple[str, RunRecord, dict]]) -> None:
+        """Bulk insert-or-replace of (run_id, run, meta) in one transaction (the eval grid is thousands)."""
+        if not batch:
+            return
+        now = datetime.now(UTC).replace(tzinfo=None)
+        run_rows, step_rows, ids = [], [], []
+        for run_id, run, meta in batch:
+            ids.append(run_id)
+            run_rows.append(
+                [
+                    run_id,
+                    now,
+                    meta.get("experiment"),
+                    meta.get("variant"),
+                    meta.get("agent_kind"),
+                    meta.get("tau"),
+                    run.incident_id,
+                    run.seed,
+                    run.config_hash,
+                    run.final_resolved,
+                    run.unsafe_action_reached_exec,
+                    run.mttm_ms,
+                    run.total_tokens,
+                    run.total_cost_usd,
+                    len(run.steps),
+                    json.dumps(meta, sort_keys=True, default=str),
+                    run.model_dump_json(),
+                ]
+            )
+            step_rows.extend(_step_row(run_id, step) for step in run.steps)
+        with self._connect() as con:
+            con.execute("BEGIN")
+            con.executemany("DELETE FROM steps WHERE run_id = ?", [[i] for i in ids])
+            con.executemany("DELETE FROM runs WHERE run_id = ?", [[i] for i in ids])
+            con.executemany(
+                "INSERT INTO runs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", run_rows
+            )
+            if step_rows:
+                con.executemany(
+                    "INSERT INTO steps VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", step_rows
+                )
+            con.execute("COMMIT")
+
+    def delete_experiment(self, experiment: str) -> int:
+        with self._connect() as con:
+            ids = [
+                r[0]
+                for r in con.execute("SELECT run_id FROM runs WHERE experiment = ?", [experiment]).fetchall()
+            ]
+            con.execute(
+                "DELETE FROM steps WHERE run_id IN (SELECT run_id FROM runs WHERE experiment = ?)",
+                [experiment],
+            )
+            con.execute("DELETE FROM runs WHERE experiment = ?", [experiment])
+        return len(ids)
+
+    def read_runs_with_meta(self, experiment: str) -> list[tuple[dict, RunRecord]]:
+        with self._connect() as con:
+            rows = con.execute(
+                "SELECT meta_json, record_json FROM runs WHERE experiment = ? ORDER BY run_id", [experiment]
+            ).fetchall()
+        return [(json.loads(meta), RunRecord.model_validate_json(record)) for meta, record in rows]
+
     def read_runs(self, *, incident_id: str | None = None, experiment: str | None = None) -> list[RunRecord]:
         return [run for _, run in self.read_runs_with_ids(incident_id=incident_id, experiment=experiment)]
 
