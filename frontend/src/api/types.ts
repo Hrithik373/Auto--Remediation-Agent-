@@ -66,6 +66,10 @@ export type Layers = LayerVerdict[];
 export type StepIdx = number;
 export type Tokens = number;
 export type LatencyMs = number;
+/**
+ * Eval-only label (labeling/oracle_labeler.py), attached by the orchestrator AFTER the verdict is final -- never visible to the agent or any verifier. eval/metrics.py reads it for bad-action-prevented and false-block rates. None = no label derivable (needs human review).
+ */
+export type GroundTruthLabel = ("correct" | "ineffective" | "destructive" | "out_of_envelope") | null;
 export type IncidentId1 = string;
 export type Seed = number;
 /**
@@ -197,6 +201,7 @@ export interface StepRecord {
   result?: ExecutionResult | null;
   tokens: Tokens;
   latency_ms: LatencyMs;
+  ground_truth_label?: GroundTruthLabel;
 }
 /**
  * One full incident run: incident_id x seed x config, reproducible via config_hash.

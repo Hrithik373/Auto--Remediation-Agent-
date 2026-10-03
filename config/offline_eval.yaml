@@ -1,0 +1,13 @@
+# Overlay on config/default.yaml for runs against the OFFLINE (simulated) environment.
+#
+# This is the explicit opt-in CLAUDE.md requires for real (non-dry-run) execution: applying an action
+# to OfflineEnvAdapter only flips a resolved flag in memory -- there is no cluster -- but the executor
+# still refuses non-dry-run applies unless this flag is set, and still requires an 'allow' verdict.
+# Never point an overlay like this at a cluster-backed adapter without a separate review.
+
+env:
+  adapter: offline
+
+execution:
+  auto_execute: true
+  dry_run: false

@@ -39,9 +39,12 @@ budgets:
   max_steps: 6                # orchestrator loop cap (blueprint §5)
 
 verifier:
-  active: envelope            # envelope | llm_judge | learned | combined
+  # none (ungated baseline) | envelope | llm_judge (envelope+judge) | learned (envelope+learned)
+  # | combined (envelope+judge+learned). See verifier/policy.py build_policy.
+  active: envelope
   threshold: 0.5               # τ — risk score cutoff; swept in Phase P4's Pareto analysis
   envelope_config: config/action_envelope.yaml
+  learned_model_path: runs/models/learned_verifier.joblib   # written by `make train` (Phase P3)
 
 execution:
   # Golden rule (CLAUDE.md): auto_execute defaults to FALSE everywhere.

@@ -5,6 +5,8 @@ a RunRecord row in DuckDB."
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from sentinel.schemas.action import ExecutionResult, ProposedAction
@@ -20,6 +22,12 @@ class StepRecord(BaseModel):
     result: ExecutionResult | None = None
     tokens: int = Field(ge=0)
     latency_ms: float = Field(ge=0.0)
+    ground_truth_label: Literal["correct", "ineffective", "destructive", "out_of_envelope"] | None = Field(
+        default=None,
+        description="Eval-only label (labeling/oracle_labeler.py), attached by the orchestrator AFTER the "
+        "verdict is final -- never visible to the agent or any verifier. eval/metrics.py reads it for "
+        "bad-action-prevented and false-block rates. None = no label derivable (needs human review).",
+    )
 
 
 class RunRecord(BaseModel):

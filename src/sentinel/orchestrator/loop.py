@@ -1,29 +1,42 @@
-"""Orchestrator loop — Phase P2. Not implemented yet; see PROGRESS.md.
+"""Orchestrator loop (blueprint §5): diagnose -> propose -> VERIFY -> act / revise / escalate.
 
-Pseudocode from blueprint §5:
     for step in range(max_steps):
-        action = agent.propose(context)
+        action  = agent.propose(...) | agent.incorporate_feedback(...)
         verdict = verifier.verify(incident, action)
-        if verdict.decision == "allow":
-            result = executor.run(action, dry_run=config.dry_run)
-            if env.evaluate(incident_id): break        # resolved
-        elif verdict.decision == "revise":
-            context = agent.incorporate_feedback(verdict.reasons)   # closed-loop, TRIAD-style
-        else:  # block
-            escalate_to_human(); break
-    record_step(...)
+        allow   -> executor.run(action, verdict=verdict, dry_run=...)   # the ONLY path to apply
+                   resolved? done.  dry run? done (a plan was produced).  else feed back and retry.
+        revise  -> agent.incorporate_feedback(verdict.reasons)          # closed loop
+        block   -> escalate to a human; stop.
 
-Every step must be recorded as a StepRecord and every run as a RunRecord (store/duckdb_store.py) --
-per CLAUDE.md, "no experiment result exists unless it's a RunRecord row in DuckDB."
+Every step becomes a StepRecord and every run a RunRecord (CLAUDE.md: no result exists unless it is
+a RunRecord row in DuckDB). The ground-truth label is attached to a step AFTER its verdict is final,
+from the env oracle -- it never flows back into the agent or the verifier.
 """
 
 from __future__ import annotations
 
-from sentinel.agent.base import DiagnosisAgent
+import time
+from collections.abc import Callable
+
+from sentinel.agent.base import AgentExhausted, DiagnosisAgent
 from sentinel.env.base import EnvAdapter
 from sentinel.executor.executor import Executor
-from sentinel.schemas.run import RunRecord
+from sentinel.labeling.oracle_labeler import derive_label
+from sentinel.schemas.action import ProposedAction
+from sentinel.schemas.incident import IncidentContext
+from sentinel.schemas.run import RunRecord, StepRecord
 from sentinel.verifier.base import Verifier
+
+StepCallback = Callable[[StepRecord], None]
+NOT_RESOLVED_FEEDBACK = "the previous action was executed but the incident is still not resolved"
+
+
+def _verifier_usage(verifier: Verifier) -> tuple[int, float]:
+    totals = getattr(verifier, "usage_totals", None)
+    if totals is not None:
+        return totals()
+    ledger = getattr(verifier, "usage", None)
+    return (ledger.total_tokens, ledger.cost_usd) if ledger is not None else (0, 0.0)
 
 
 class Orchestrator:
@@ -35,14 +48,75 @@ class Orchestrator:
         executor: Executor,
         *,
         max_steps: int = 6,
+        config_hash: str = "unhashed",
     ) -> None:
         self._env = env
         self._agent = agent
         self._verifier = verifier
         self._executor = executor
         self._max_steps = max_steps
+        self._config_hash = config_hash
 
-    def run(self, incident_id: str, *, seed: int = 0, dry_run: bool = True) -> RunRecord:
-        raise NotImplementedError(
-            "orchestrator.loop.Orchestrator.run is Phase P2 work. See ARCHITECTURE_BLUEPRINT.md §5, §8."
+    def _usage(self) -> tuple[int, float]:
+        tokens, cost = _verifier_usage(self._verifier)
+        return self._agent.usage.total_tokens + tokens, self._agent.usage.cost_usd + cost
+
+    def _next_action(self, incident: IncidentContext, feedback: list[str] | None) -> ProposedAction | None:
+        try:
+            if feedback is None:
+                return self._agent.propose(incident)
+            return self._agent.incorporate_feedback(incident, feedback)
+        except AgentExhausted:
+            return None  # nothing left to try -> the run escalates
+
+    def run(
+        self, incident_id: str, *, seed: int = 0, dry_run: bool = True, on_step: StepCallback | None = None
+    ) -> RunRecord:
+        self._env.reset(incident_id)
+        incident = self._env.get_incident(incident_id)
+        start = time.perf_counter()
+        start_tokens, start_cost = self._usage()
+        steps: list[StepRecord] = []
+        feedback: list[str] | None = None
+        resolved = unsafe_exec = False
+
+        for step_idx in range(self._max_steps):
+            t0, (tok0, _) = time.perf_counter(), self._usage()
+            action = self._next_action(incident, feedback)
+            if action is None:
+                break
+            verdict = self._verifier.verify(incident, action)
+            label = derive_label(self._env, action, incident_id)  # eval-only, after the verdict
+            result = None
+            if verdict.decision == "allow":
+                result = self._executor.run(action, verdict=verdict, dry_run=dry_run)
+                unsafe_exec |= bool(result.executed and not result.dry_run and label == "destructive")
+                resolved = bool(result.executed and self._env.evaluate(incident_id))
+            step = StepRecord(
+                step_idx=step_idx,
+                proposed=action,
+                verdict=verdict,
+                result=result,
+                tokens=self._usage()[0] - tok0,
+                latency_ms=(time.perf_counter() - t0) * 1000,
+                ground_truth_label=label,
+            )
+            steps.append(step)
+            if on_step is not None:
+                on_step(step)
+            if verdict.decision == "block" or resolved or (verdict.decision == "allow" and dry_run):
+                break  # escalated, fixed, or (dry run) a vetted plan exists -- nothing more to do
+            feedback = verdict.reasons if verdict.decision == "revise" else [NOT_RESOLVED_FEEDBACK]
+
+        tokens, cost = self._usage()
+        return RunRecord(
+            incident_id=incident_id,
+            seed=seed,
+            config_hash=self._config_hash,
+            steps=steps,
+            final_resolved=resolved,
+            unsafe_action_reached_exec=unsafe_exec,
+            mttm_ms=(time.perf_counter() - start) * 1000 if resolved else None,
+            total_tokens=tokens - start_tokens,
+            total_cost_usd=round(cost - start_cost, 8),
         )

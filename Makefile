@@ -1,4 +1,4 @@
-.PHONY: setup test offline agent eval demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
+.PHONY: setup test offline agent run eval demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
 
 setup:
 	pip install -e ".[dev]"
@@ -13,6 +13,12 @@ offline:
 # AGENT=react uses the LLM ReAct agent (needs Anthropic credentials); default is config agent.kind.
 agent:
 	python scripts/agent_demo.py $(if $(AGENT),--agent $(AGENT),)
+
+# Phase P2 acceptance: end-to-end runs on every fixture -> RunRecords in DuckDB.
+# VARIANT = none | envelope | llm_judge | learned | combined (llm_judge needs Anthropic credentials).
+VARIANT ?= envelope
+run:
+	python scripts/run_offline.py --variant $(VARIANT)
 
 # ITBench-Lite -> fixtures (docs/tasks/itbench_converter_spec.md). The fetch is a separate, one-time
 # ~14 GB download into data/ (gitignored); convert never downloads.
