@@ -11,10 +11,11 @@ dist/
 .coverage
 htmlcov/
 
-# Virtual envs
-.venv/
-venv/
-env/
+# Virtual envs -- anchored to the repo root: an unanchored `env/` also matched src/sentinel/env/
+# and kept the whole env-adapter package out of git.
+/.venv/
+/venv/
+/env/
 
 # Env / secrets
 .env
