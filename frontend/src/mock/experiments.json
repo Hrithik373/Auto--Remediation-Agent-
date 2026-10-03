@@ -1,0 +1,606 @@
+{
+  "source": "snapshot of `make eval` experiment 'main' (7585 runs)",
+  "pareto": {
+    "envelope": [
+      {
+        "tau": 0.05,
+        "bad_action_prevented": 1.0,
+        "false_block": 1.0,
+        "resolution": 0.0,
+        "net_safe_resolutions": 0.0,
+        "unsafe_execution": 0.0,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.1,
+        "bad_action_prevented": 1.0,
+        "false_block": 1.0,
+        "resolution": 0.0,
+        "net_safe_resolutions": 0.0,
+        "unsafe_execution": 0.0,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.2,
+        "bad_action_prevented": 0.6338,
+        "false_block": 0.2985,
+        "resolution": 0.4585,
+        "net_safe_resolutions": 0.4049,
+        "unsafe_execution": 0.1268,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.3,
+        "bad_action_prevented": 0.6338,
+        "false_block": 0.2985,
+        "resolution": 0.4585,
+        "net_safe_resolutions": 0.4049,
+        "unsafe_execution": 0.1268,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.4,
+        "bad_action_prevented": 0.3553,
+        "false_block": 0.0,
+        "resolution": 0.722,
+        "net_safe_resolutions": 0.5756,
+        "unsafe_execution": 0.2146,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.5,
+        "bad_action_prevented": 0.3553,
+        "false_block": 0.0,
+        "resolution": 0.722,
+        "net_safe_resolutions": 0.5756,
+        "unsafe_execution": 0.2146,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.6,
+        "bad_action_prevented": 0.3553,
+        "false_block": 0.0,
+        "resolution": 0.722,
+        "net_safe_resolutions": 0.5756,
+        "unsafe_execution": 0.2146,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.7,
+        "bad_action_prevented": 0.3553,
+        "false_block": 0.0,
+        "resolution": 0.722,
+        "net_safe_resolutions": 0.5756,
+        "unsafe_execution": 0.2146,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.8,
+        "bad_action_prevented": 0.3553,
+        "false_block": 0.0,
+        "resolution": 0.722,
+        "net_safe_resolutions": 0.5756,
+        "unsafe_execution": 0.2146,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.9,
+        "bad_action_prevented": 0.3553,
+        "false_block": 0.0,
+        "resolution": 0.722,
+        "net_safe_resolutions": 0.5756,
+        "unsafe_execution": 0.2146,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.95,
+        "bad_action_prevented": 0.3553,
+        "false_block": 0.0,
+        "resolution": 0.722,
+        "net_safe_resolutions": 0.5756,
+        "unsafe_execution": 0.2146,
+        "n_runs": 205
+      }
+    ],
+    "learned": [
+      {
+        "tau": 0.05,
+        "bad_action_prevented": 1.0,
+        "false_block": 0.1197,
+        "resolution": 0.5024,
+        "net_safe_resolutions": 0.5024,
+        "unsafe_execution": 0.0,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.1,
+        "bad_action_prevented": 1.0,
+        "false_block": 0.0513,
+        "resolution": 0.5415,
+        "net_safe_resolutions": 0.5415,
+        "unsafe_execution": 0.0,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.2,
+        "bad_action_prevented": 0.9692,
+        "false_block": 0.0504,
+        "resolution": 0.5512,
+        "net_safe_resolutions": 0.5463,
+        "unsafe_execution": 0.0098,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.3,
+        "bad_action_prevented": 0.9692,
+        "false_block": 0.0504,
+        "resolution": 0.5512,
+        "net_safe_resolutions": 0.5463,
+        "unsafe_execution": 0.0098,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.4,
+        "bad_action_prevented": 0.9692,
+        "false_block": 0.042,
+        "resolution": 0.5561,
+        "net_safe_resolutions": 0.5512,
+        "unsafe_execution": 0.0098,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.5,
+        "bad_action_prevented": 0.9692,
+        "false_block": 0.042,
+        "resolution": 0.5561,
+        "net_safe_resolutions": 0.5512,
+        "unsafe_execution": 0.0098,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.6,
+        "bad_action_prevented": 0.9692,
+        "false_block": 0.0336,
+        "resolution": 0.561,
+        "net_safe_resolutions": 0.5561,
+        "unsafe_execution": 0.0098,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.7,
+        "bad_action_prevented": 0.9692,
+        "false_block": 0.0336,
+        "resolution": 0.561,
+        "net_safe_resolutions": 0.5561,
+        "unsafe_execution": 0.0098,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.8,
+        "bad_action_prevented": 0.9692,
+        "false_block": 0.0336,
+        "resolution": 0.561,
+        "net_safe_resolutions": 0.5561,
+        "unsafe_execution": 0.0098,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.9,
+        "bad_action_prevented": 0.9545,
+        "false_block": 0.0336,
+        "resolution": 0.561,
+        "net_safe_resolutions": 0.5561,
+        "unsafe_execution": 0.0146,
+        "n_runs": 205
+      },
+      {
+        "tau": 0.95,
+        "bad_action_prevented": 0.9545,
+        "false_block": 0.0336,
+        "resolution": 0.561,
+        "net_safe_resolutions": 0.5561,
+        "unsafe_execution": 0.0146,
+        "n_runs": 205
+      }
+    ]
+  },
+  "metrics": [
+    {
+      "baseline": "Ungated agent",
+      "variant": "none",
+      "resolution": 0.9756,
+      "bad_prevented": 0.0,
+      "false_block": 0.0,
+      "unsafe_execution": 0.3317,
+      "mttm_ms": 25.9123,
+      "cost_usd": 0.0
+    },
+    {
+      "baseline": "Envelope only",
+      "variant": "envelope",
+      "resolution": 0.722,
+      "bad_prevented": 0.3553,
+      "false_block": 0.0,
+      "unsafe_execution": 0.2146,
+      "mttm_ms": 24.9361,
+      "cost_usd": 0.0
+    },
+    {
+      "baseline": "Envelope + learned",
+      "variant": "learned",
+      "resolution": 0.5561,
+      "bad_prevented": 0.9692,
+      "false_block": 0.042,
+      "unsafe_execution": 0.0098,
+      "mttm_ms": 45.8777,
+      "cost_usd": 0.0
+    }
+  ],
+  "prevention_partition": [
+    {
+      "baseline": "Ungated agent",
+      "variant": "none",
+      "caught_by_envelope": 0.0,
+      "caught_by_secondary_only": 0.0,
+      "missed": 1.0
+    },
+    {
+      "baseline": "Envelope only",
+      "variant": "envelope",
+      "caught_by_envelope": 0.3553,
+      "caught_by_secondary_only": 0.0,
+      "missed": 0.6447
+    },
+    {
+      "baseline": "Envelope + learned",
+      "variant": "learned",
+      "caught_by_envelope": 0.3231,
+      "caught_by_secondary_only": 0.6462,
+      "missed": 0.0308
+    }
+  ],
+  "ablations": [
+    {
+      "name": "Verifier on/off",
+      "variant": "off (ungated)",
+      "metric": "unsafe_execution",
+      "value": 0.3317
+    },
+    {
+      "name": "Verifier on/off",
+      "variant": "off (ungated)",
+      "metric": "resolution",
+      "value": 0.9756
+    },
+    {
+      "name": "Verifier on/off",
+      "variant": "off (ungated)",
+      "metric": "net_safe_resolutions",
+      "value": 0.6683
+    },
+    {
+      "name": "Verifier on/off",
+      "variant": "on (envelope + learned)",
+      "metric": "unsafe_execution",
+      "value": 0.0098
+    },
+    {
+      "name": "Verifier on/off",
+      "variant": "on (envelope + learned)",
+      "metric": "resolution",
+      "value": 0.5561
+    },
+    {
+      "name": "Verifier on/off",
+      "variant": "on (envelope + learned)",
+      "metric": "net_safe_resolutions",
+      "value": 0.5512
+    },
+    {
+      "name": "Verification layers",
+      "variant": "Envelope only",
+      "metric": "bad_action_prevented",
+      "value": 0.3553
+    },
+    {
+      "name": "Verification layers",
+      "variant": "Envelope only",
+      "metric": "false_block",
+      "value": 0.0
+    },
+    {
+      "name": "Verification layers",
+      "variant": "Envelope + learned",
+      "metric": "bad_action_prevented",
+      "value": 0.9692
+    },
+    {
+      "name": "Verification layers",
+      "variant": "Envelope + learned",
+      "metric": "false_block",
+      "value": 0.042
+    },
+    {
+      "name": "Topology features (learned)",
+      "variant": "with topology",
+      "metric": "bad_action_prevented",
+      "value": 0.9692
+    },
+    {
+      "name": "Topology features (learned)",
+      "variant": "with topology",
+      "metric": "false_block",
+      "value": 0.042
+    },
+    {
+      "name": "Topology features (learned)",
+      "variant": "without topology",
+      "metric": "bad_action_prevented",
+      "value": 0.9692
+    },
+    {
+      "name": "Topology features (learned)",
+      "variant": "without topology",
+      "metric": "false_block",
+      "value": 0.0504
+    },
+    {
+      "name": "Block handling",
+      "variant": "Envelope only: escalate",
+      "metric": "resolution",
+      "value": 0.722
+    },
+    {
+      "name": "Block handling",
+      "variant": "Envelope only: escalate",
+      "metric": "unsafe_execution",
+      "value": 0.2146
+    },
+    {
+      "name": "Block handling",
+      "variant": "Envelope only: escalate",
+      "metric": "net_safe_resolutions",
+      "value": 0.5756
+    },
+    {
+      "name": "Block handling",
+      "variant": "Envelope only: escalate",
+      "metric": "steps_to_mitigation",
+      "value": 1.6284
+    },
+    {
+      "name": "Block handling",
+      "variant": "Envelope only: retry",
+      "metric": "resolution",
+      "value": 0.9756
+    },
+    {
+      "name": "Block handling",
+      "variant": "Envelope only: retry",
+      "metric": "unsafe_execution",
+      "value": 0.2488
+    },
+    {
+      "name": "Block handling",
+      "variant": "Envelope only: retry",
+      "metric": "net_safe_resolutions",
+      "value": 0.7512
+    },
+    {
+      "name": "Block handling",
+      "variant": "Envelope only: retry",
+      "metric": "steps_to_mitigation",
+      "value": 1.91
+    },
+    {
+      "name": "Block handling",
+      "variant": "Envelope + learned: escalate",
+      "metric": "resolution",
+      "value": 0.5561
+    },
+    {
+      "name": "Block handling",
+      "variant": "Envelope + learned: escalate",
+      "metric": "unsafe_execution",
+      "value": 0.0098
+    },
+    {
+      "name": "Block handling",
+      "variant": "Envelope + learned: escalate",
+      "metric": "net_safe_resolutions",
+      "value": 0.5512
+    },
+    {
+      "name": "Block handling",
+      "variant": "Envelope + learned: escalate",
+      "metric": "steps_to_mitigation",
+      "value": 1.3333
+    },
+    {
+      "name": "Block handling",
+      "variant": "Envelope + learned: retry",
+      "metric": "resolution",
+      "value": 0.9268
+    },
+    {
+      "name": "Block handling",
+      "variant": "Envelope + learned: retry",
+      "metric": "unsafe_execution",
+      "value": 0.0293
+    },
+    {
+      "name": "Block handling",
+      "variant": "Envelope + learned: retry",
+      "metric": "net_safe_resolutions",
+      "value": 0.922
+    },
+    {
+      "name": "Block handling",
+      "variant": "Envelope + learned: retry",
+      "metric": "steps_to_mitigation",
+      "value": 1.9053
+    },
+    {
+      "name": "Agent quality",
+      "variant": "envelope@default",
+      "metric": "unsafe_execution",
+      "value": 0.2146
+    },
+    {
+      "name": "Agent quality",
+      "variant": "envelope@default",
+      "metric": "resolution",
+      "value": 0.722
+    },
+    {
+      "name": "Agent quality",
+      "variant": "envelope@default",
+      "metric": "net_safe_resolutions",
+      "value": 0.5756
+    },
+    {
+      "name": "Agent quality",
+      "variant": "envelope@strong",
+      "metric": "unsafe_execution",
+      "value": 0.1171
+    },
+    {
+      "name": "Agent quality",
+      "variant": "envelope@strong",
+      "metric": "resolution",
+      "value": 0.8488
+    },
+    {
+      "name": "Agent quality",
+      "variant": "envelope@strong",
+      "metric": "net_safe_resolutions",
+      "value": 0.7512
+    },
+    {
+      "name": "Agent quality",
+      "variant": "envelope@weak",
+      "metric": "unsafe_execution",
+      "value": 0.361
+    },
+    {
+      "name": "Agent quality",
+      "variant": "envelope@weak",
+      "metric": "resolution",
+      "value": 0.4927
+    },
+    {
+      "name": "Agent quality",
+      "variant": "envelope@weak",
+      "metric": "net_safe_resolutions",
+      "value": 0.278
+    },
+    {
+      "name": "Agent quality",
+      "variant": "learned@default",
+      "metric": "unsafe_execution",
+      "value": 0.0098
+    },
+    {
+      "name": "Agent quality",
+      "variant": "learned@default",
+      "metric": "resolution",
+      "value": 0.5561
+    },
+    {
+      "name": "Agent quality",
+      "variant": "learned@default",
+      "metric": "net_safe_resolutions",
+      "value": 0.5512
+    },
+    {
+      "name": "Agent quality",
+      "variant": "learned@strong",
+      "metric": "unsafe_execution",
+      "value": 0.0049
+    },
+    {
+      "name": "Agent quality",
+      "variant": "learned@strong",
+      "metric": "resolution",
+      "value": 0.7073
+    },
+    {
+      "name": "Agent quality",
+      "variant": "learned@strong",
+      "metric": "net_safe_resolutions",
+      "value": 0.7073
+    },
+    {
+      "name": "Agent quality",
+      "variant": "learned@weak",
+      "metric": "unsafe_execution",
+      "value": 0.0098
+    },
+    {
+      "name": "Agent quality",
+      "variant": "learned@weak",
+      "metric": "resolution",
+      "value": 0.2585
+    },
+    {
+      "name": "Agent quality",
+      "variant": "learned@weak",
+      "metric": "net_safe_resolutions",
+      "value": 0.2585
+    },
+    {
+      "name": "Agent quality",
+      "variant": "none@default",
+      "metric": "unsafe_execution",
+      "value": 0.3317
+    },
+    {
+      "name": "Agent quality",
+      "variant": "none@default",
+      "metric": "resolution",
+      "value": 0.9756
+    },
+    {
+      "name": "Agent quality",
+      "variant": "none@default",
+      "metric": "net_safe_resolutions",
+      "value": 0.6683
+    },
+    {
+      "name": "Agent quality",
+      "variant": "none@strong",
+      "metric": "unsafe_execution",
+      "value": 0.2
+    },
+    {
+      "name": "Agent quality",
+      "variant": "none@strong",
+      "metric": "resolution",
+      "value": 0.9756
+    },
+    {
+      "name": "Agent quality",
+      "variant": "none@strong",
+      "metric": "net_safe_resolutions",
+      "value": 0.8
+    },
+    {
+      "name": "Agent quality",
+      "variant": "none@weak",
+      "metric": "unsafe_execution",
+      "value": 0.6293
+    },
+    {
+      "name": "Agent quality",
+      "variant": "none@weak",
+      "metric": "resolution",
+      "value": 0.9561
+    },
+    {
+      "name": "Agent quality",
+      "variant": "none@weak",
+      "metric": "net_safe_resolutions",
+      "value": 0.3707
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "uid": "sentinel-live",
+  "title": "sentinel — live loop",
+  "description": "Operational telemetry from the gateway's console runs (src/sentinel/observability/metrics.py). Evaluation results live in DuckDB / make eval, not here.",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-30m", "to": "now" },
+  "tags": ["sentinel"],
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Destructive actions blocked",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "sentinel-prom" },
+      "targets": [{ "refId": "A", "expr": "sum(sentinel_destructive_proposals_total{outcome=\"blocked\"}) or vector(0)" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#34D399" }, "unit": "none" } },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 2, "type": "stat", "title": "Destructive actions EXECUTED",
+      "description": "The key safety metric: destructive-labeled actions that reached the executor.",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "sentinel-prom" },
+      "targets": [{ "refId": "A", "expr": "sum(sentinel_destructive_proposals_total{outcome=\"executed\"}) or vector(0)" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#F87171" }, "unit": "none" } },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 3, "type": "stat", "title": "Runs",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "sentinel-prom" },
+      "targets": [{ "refId": "A", "expr": "sum(sentinel_runs_total) or vector(0)" }],
+      "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 4, "type": "stat", "title": "LLM spend (agent + verifier)",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "sentinel-prom" },
+      "targets": [{ "refId": "A", "expr": "sum(sentinel_llm_cost_usd_total) or vector(0)" }],
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 4 } },
+      "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Verdicts per minute, by decision",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "sentinel-prom" },
+      "targets": [{ "refId": "A", "expr": "sum by (decision) (rate(sentinel_verdicts_total[1m])) * 60", "legendFormat": "{{decision}}" }],
+      "fieldConfig": {
+        "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 10 }, "unit": "none" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "allow" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#34D399" } }] },
+          { "matcher": { "id": "byName", "options": "block" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#F87171" } }] },
+          { "matcher": { "id": "byName", "options": "revise" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#FBBF24" } }] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "id": 6, "type": "bargauge", "title": "Runs by outcome",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "sentinel-prom" },
+      "targets": [{ "refId": "A", "expr": "sum by (outcome) (sentinel_runs_total)", "legendFormat": "{{outcome}}", "instant": true }],
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "fixed", "fixedColor": "#8A97A6" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "resolved" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#34D399" } }] },
+          { "matcher": { "id": "byName", "options": "escalated" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#A78BFA" } }] }
+        ]
+      },
+      "options": { "orientation": "horizontal", "displayMode": "basic", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 7, "type": "table", "title": "Per-layer verdicts (which layer decided what)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "sentinel-prom" },
+      "targets": [{ "refId": "A", "expr": "sum by (layer, decision) (sentinel_layer_verdicts_total)", "format": "table", "instant": true }],
+      "transformations": [{ "id": "organize", "options": { "excludeByName": { "Time": true }, "renameByName": { "Value": "count" } } }]
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "Step latency p50 / p95 (propose + verify + act)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "sentinel-prom" },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.5, sum by (le) (rate(sentinel_step_latency_seconds_bucket[5m])))", "legendFormat": "p50" },
+        { "refId": "B", "expr": "histogram_quantile(0.95, sum by (le) (rate(sentinel_step_latency_seconds_bucket[5m])))", "legendFormat": "p95" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2 } } }
+    }
+  ]
+}

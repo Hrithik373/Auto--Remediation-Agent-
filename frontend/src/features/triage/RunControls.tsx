@@ -1,13 +1,13 @@
-import { useUiStore } from "@/store/ui";
+import { useUiStore, type VerifierChoice } from "@/store/ui";
 import { useStartRun } from "@/api/runs";
 import Card from "@/features/shared/Card";
-import type { Verdict } from "@/api/types";
 
-const VERIFIER_OPTIONS: { value: Verdict["verifier"]; label: string }[] = [
-  { value: "envelope", label: "Envelope only" },
-  { value: "llm_judge", label: "LLM-judge" },
-  { value: "learned", label: "Learned" },
-  { value: "combined", label: "Combined" },
+const VERIFIER_OPTIONS: { value: VerifierChoice; label: string; title: string }[] = [
+  { value: "none", label: "Ungated", title: "No verification -- the baseline that shows what the verifier prevents" },
+  { value: "envelope", label: "Envelope only", title: "Deterministic allow-list gate" },
+  { value: "learned", label: "Learned", title: "Envelope + learned verifier (runs offline)" },
+  { value: "llm_judge", label: "LLM-judge", title: "Envelope + LLM judge (needs Anthropic credentials on the gateway)" },
+  { value: "combined", label: "Combined", title: "Envelope + judge + learned (needs Anthropic credentials)" },
 ];
 
 interface RunControlsProps {
@@ -38,6 +38,7 @@ export default function RunControls({ incidentId, onStarted, disabled }: RunCont
             {VERIFIER_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
+                title={opt.title}
                 onClick={() => setVerifierChoice(opt.value)}
                 className={`rounded border px-2.5 py-1 text-xs transition-colors ${
                   verifierChoice === opt.value

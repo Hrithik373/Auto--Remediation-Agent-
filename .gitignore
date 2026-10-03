@@ -21,6 +21,8 @@ htmlcov/
 .env
 .env.*
 !.env.example
+# Not secret: only selects live mode + local URLs for `npm run dev:live`.
+!frontend/.env.live
 
 # Raw third-party datasets (e.g. ITBench-Lite snapshots, several GB). Only compacted fixture JSON
 # under fixtures/incidents/ is committed -- see docs/tasks/itbench_converter_spec.md.

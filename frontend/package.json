@@ -6,6 +6,7 @@
   "description": "SRE triage console for sentinel-remediate — Phase P5 (ARCHITECTURE_BLUEPRINT.md / FRONTEND_BLUEPRINT.md).",
   "scripts": {
     "dev": "vite",
+    "dev:live": "vite --mode live",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint . --max-warnings 0",

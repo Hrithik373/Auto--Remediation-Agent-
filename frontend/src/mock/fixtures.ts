@@ -213,79 +213,49 @@ export const CANNED_RUNS: Record<string, RunRecord> = {
 };
 
 // ---- Results screen: Pareto sweep + prevention partition + ablations + baselines ----
-// Shaped like eval/pareto.py, eval/metrics.py and eval/ablations.py (Phase P4) will eventually emit --
-// see FRONTEND_BLUEPRINT.md §6.3 and PROGRESS.md for what's real vs. illustrative here.
+// MEASURED, not illustrative: experiments.json is a snapshot of `make eval`'s results, written by
+// scripts/export_mock_results.py (`make mock-results`) in exactly the shapes gateway/api.py's
+// /api/experiments/* return. Re-export after re-running the eval.
+import experiments from "./experiments.json";
+
+/** Verifier variant ids, as eval/ablations.py and gateway/api.py use them. */
+export type VariantId = "none" | "envelope" | "llm_judge" | "learned" | "combined";
 
 export interface ParetoPoint {
   tau: number;
-  bad_action_prevented: number;
-  false_block: number;
-  resolution: number;
+  bad_action_prevented: number | null;
+  false_block: number | null;
+  resolution: number | null;
 }
-
-export const PARETO_SERIES: Record<string, ParetoPoint[]> = {
-  "envelope only": [
-    { tau: 0.3, bad_action_prevented: 0.42, false_block: 0.02, resolution: 0.71 },
-    { tau: 0.5, bad_action_prevented: 0.42, false_block: 0.02, resolution: 0.74 },
-    { tau: 0.7, bad_action_prevented: 0.42, false_block: 0.02, resolution: 0.76 },
-  ],
-  "+ llm-judge": [
-    { tau: 0.3, bad_action_prevented: 0.95, false_block: 0.18, resolution: 0.68 },
-    { tau: 0.5, bad_action_prevented: 0.88, false_block: 0.09, resolution: 0.73 },
-    { tau: 0.7, bad_action_prevented: 0.74, false_block: 0.04, resolution: 0.77 },
-    { tau: 0.9, bad_action_prevented: 0.55, false_block: 0.01, resolution: 0.78 },
-  ],
-  "+ learned": [
-    { tau: 0.3, bad_action_prevented: 0.91, false_block: 0.11, resolution: 0.72 },
-    { tau: 0.5, bad_action_prevented: 0.86, false_block: 0.06, resolution: 0.76 },
-    { tau: 0.7, bad_action_prevented: 0.71, false_block: 0.03, resolution: 0.79 },
-    { tau: 0.9, bad_action_prevented: 0.5, false_block: 0.01, resolution: 0.79 },
-  ],
-};
 
 export interface MetricsRow {
   baseline: string;
-  resolution: number;
-  bad_prevented: number;
-  false_block: number;
-  mttm_ms: number;
-  cost_usd: number;
+  variant: string;
+  resolution: number | null;
+  bad_prevented: number | null;
+  false_block: number | null;
+  unsafe_execution: number | null;
+  mttm_ms: number | null;
+  cost_usd: number | null;
 }
-
-export const METRICS_ROWS: MetricsRow[] = [
-  { baseline: "Ungated agent", resolution: 0.81, bad_prevented: 0, false_block: 0, mttm_ms: 2100, cost_usd: 0.0048 },
-  { baseline: "Envelope only", resolution: 0.74, bad_prevented: 0.42, false_block: 0.02, mttm_ms: 2260, cost_usd: 0.0051 },
-  { baseline: "LLM-judge (τ=0.5)", resolution: 0.73, bad_prevented: 0.88, false_block: 0.09, mttm_ms: 2790, cost_usd: 0.0068 },
-  { baseline: "Learned (τ=0.5)", resolution: 0.76, bad_prevented: 0.86, false_block: 0.06, mttm_ms: 2410, cost_usd: 0.0055 },
-];
 
 export interface PreventionRow {
   baseline: string;
+  variant: string;
   caught_by_envelope: number;
-  caught_by_judge_only: number;
+  caught_by_secondary_only: number;
   missed: number;
 }
-
-// ★ the thesis figure -- FRONTEND_BLUEPRINT.md §6.3. Envelope-only leaves a "missed" residue
-// (cordon_node-shaped actions); +judge shrinks it. Illustrative numbers until Phase P4 runs for real.
-export const PREVENTION_PARTITION: PreventionRow[] = [
-  { baseline: "Envelope only", caught_by_envelope: 0.42, caught_by_judge_only: 0, missed: 0.58 },
-  { baseline: "+ LLM-judge", caught_by_envelope: 0.42, caught_by_judge_only: 0.46, missed: 0.12 },
-  { baseline: "+ Learned", caught_by_envelope: 0.42, caught_by_judge_only: 0.44, missed: 0.14 },
-];
 
 export interface AblationRow {
   name: string;
   variant: string;
   metric: string;
-  value: number;
+  value: number | null;
 }
 
-export const ABLATION_ROWS: AblationRow[] = [
-  { name: "Verifier on/off", variant: "off", metric: "unsafe_action_reached_exec", value: 0.19 },
-  { name: "Verifier on/off", variant: "on (combined)", metric: "unsafe_action_reached_exec", value: 0.02 },
-  { name: "Telemetry signal", variant: "logs only", metric: "resolution", value: 0.61 },
-  { name: "Telemetry signal", variant: "logs + metrics + topology", metric: "resolution", value: 0.76 },
-  { name: "Model size", variant: "judge: small", metric: "bad_action_prevented", value: 0.71 },
-  { name: "Model size", variant: "judge: large", metric: "bad_action_prevented", value: 0.88 },
-];
+export const EXPERIMENTS_SOURCE: string = experiments.source;
+export const PARETO_SERIES: Record<string, ParetoPoint[]> = experiments.pareto;
+export const METRICS_ROWS: MetricsRow[] = experiments.metrics;
+export const PREVENTION_PARTITION: PreventionRow[] = experiments.prevention_partition;
+export const ABLATION_ROWS: AblationRow[] = experiments.ablations;

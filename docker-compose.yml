@@ -1,36 +1,59 @@
-# Phase P5 infra: LLM gateway + observability stack.
-# Not wired up yet — src/sentinel/gateway/app.py and src/sentinel/observability/metrics.py are stubs
-# (see PROGRESS.md). This file documents the intended shape so P5 has a target to build against.
-
-version: "3.9"
+# Phase P5e: the full demo stack -- `make demo` (docker compose up --build).
+#   console    http://localhost:4173   (nginx: static build in live mode, proxies /api -> gateway, SSE-safe)
+#   gateway    http://localhost:8080   (FastAPI: /api console API, /chat LLM proxy, /metrics)
+#   prometheus http://localhost:9090   (scrapes gateway /metrics)
+#   grafana    http://localhost:3000   (provisioned "sentinel — live loop" dashboard, embedded by the console)
+#
+# Offline by default: the gateway runs the simulated agent + envelope/learned verifiers. Set
+# ANTHROPIC_API_KEY in your shell to enable the llm_judge/combined variants (they spend API money).
 
 services:
   gateway:
     build:
       context: .
-      dockerfile: Dockerfile.gateway   # TODO(P5): add Dockerfile.gateway
+      dockerfile: Dockerfile.gateway
     ports:
       - "8080:8080"
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - SENTINEL_CONFIG=config/offline_eval.yaml
     volumes:
-      - ./config:/app/config:ro
-    profiles: ["p5"]
+      - sentinel-runs:/app/runs   # DuckDB run store survives restarts
+
+  console:
+    build:
+      context: ./frontend
+      args:
+        VITE_USE_MOCKS: "false"
+    ports:
+      - "4173:4173"
+    depends_on:
+      gateway:
+        condition: service_healthy
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.54.1
     ports:
       - "9090:9090"
     volumes:
-      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro   # TODO(P5): add this file
-    profiles: ["p5"]
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - gateway
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.2.0
     ports:
       - "3000:3000"
+    environment:
+      # Local demo only: anonymous read-only access + iframe embedding for the console's
+      # Observability screen. Never expose this configuration beyond localhost.
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_SECURITY_ALLOW_EMBEDDING=true
     volumes:
       - ./config/grafana:/etc/grafana/provisioning:ro
     depends_on:
       - prometheus
-    profiles: ["p5"]
+
+volumes:
+  sentinel-runs:

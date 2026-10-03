@@ -6,7 +6,13 @@ interface AblationTableProps {
   rows: AblationRow[];
 }
 
-/** Signal on/off, verifier on/off, threshold sweep, model-size sweep (blueprint §7 / §6.3). */
+// Rates are fractions -> percent; counts like steps_to_mitigation are plain numbers.
+function formatValue(metric: string, value: number | null): string {
+  if (value == null) return "—";
+  return metric.startsWith("steps") ? value.toFixed(2) : formatPct(value);
+}
+
+/** Verifier on/off, layers, block handling, agent quality, topology features (eval/ablations.py). */
 export default function AblationTable({ rows }: AblationTableProps) {
   const groups = new Map<string, AblationRow[]>();
   for (const row of rows) {
@@ -22,12 +28,12 @@ export default function AblationTable({ rows }: AblationTableProps) {
             <h4 className="mb-2 text-2xs font-semibold uppercase tracking-wider text-console-text-muted">{name}</h4>
             <div className="space-y-1.5">
               {group.map((row) => (
-                <div key={row.variant} className="flex items-center justify-between gap-4 text-sm">
+                <div key={`${row.variant}|${row.metric}`} className="flex items-center justify-between gap-4 text-sm">
                   <span className="font-mono text-console-text">{row.variant}</span>
                   <div className="flex items-center gap-2">
                     <span className="text-2xs text-console-text-muted">{row.metric}</span>
                     <span className="w-14 text-right font-mono font-semibold text-console-text [font-variant-numeric:tabular-nums]">
-                      {formatPct(row.value)}
+                      {formatValue(row.metric, row.value)}
                     </span>
                   </div>
                 </div>

@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import type { Verdict } from "@/api/types";
 
-type VerifierChoice = Verdict["verifier"];
+/** POST /api/runs `verifier`: a Verdict verifier, or "none" for the ungated baseline. */
+export type VerifierChoice = "none" | Verdict["verifier"];
 
 interface UiState {
   selectedIncidentId: string | null;
@@ -23,7 +24,9 @@ interface UiState {
 export const useUiStore = create<UiState>((set) => ({
   selectedIncidentId: null,
   tau: 0.5,
-  verifierChoice: "combined",
+  // "learned" runs fully offline. "combined"/"llm_judge" need Anthropic credentials on the gateway --
+  // without them the judge fails closed and blocks everything (visible in the VerdictCard).
+  verifierChoice: "learned",
   dryRun: true,
   setSelectedIncidentId: (id) => set({ selectedIncidentId: id }),
   setTau: (tau) => set({ tau }),

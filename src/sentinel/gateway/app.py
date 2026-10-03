@@ -9,14 +9,18 @@ The LLM client is built lazily on the first /chat call, so the gateway starts (a
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException
+from prometheus_client import make_asgi_app
 from pydantic import BaseModel, Field
 
 from sentinel.config import load_config
 from sentinel.gateway.api import router as api_router
 from sentinel.gateway.clients import LLMClient, UsageLedger, build_llm_client
+from sentinel.observability.metrics import init_metrics
 
 app = FastAPI(title="sentinel-remediate gateway")
 app.include_router(api_router)
+# Prometheus scrape target (docker-compose.yml `prometheus` service -> config/prometheus.yml).
+app.mount("/metrics", make_asgi_app(registry=init_metrics().registry))
 
 _state: dict[str, object] = {"ledger": UsageLedger(), "client": None}
 

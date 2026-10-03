@@ -54,6 +54,12 @@ CREATE TABLE IF NOT EXISTS steps (
     tokens BIGINT,
     latency_ms DOUBLE
 );
+CREATE TABLE IF NOT EXISTS human_decisions (
+    run_id VARCHAR,
+    step_idx INTEGER,
+    human_decision VARCHAR,
+    decided_at TIMESTAMP
+);
 """
 
 
@@ -151,6 +157,14 @@ class DuckDBStore:
                     "INSERT INTO steps VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", step_rows
                 )
             con.execute("COMMIT")
+
+    def record_human_decision(self, run_id: str, step_idx: int, human_decision: str) -> None:
+        """HITL audit trail (console). Recording only -- it never triggers execution."""
+        with self._connect() as con:
+            con.execute(
+                "INSERT INTO human_decisions VALUES (?, ?, ?, ?)",
+                [run_id, step_idx, human_decision, datetime.now(UTC).replace(tzinfo=None)],
+            )
 
     def delete_experiment(self, experiment: str) -> int:
         with self._connect() as con:

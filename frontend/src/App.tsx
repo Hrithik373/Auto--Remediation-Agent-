@@ -5,6 +5,8 @@ import ResultsRoute from "./routes/ResultsRoute";
 import ObservabilityRoute from "./routes/ObservabilityRoute";
 import StatusDot from "./features/shared/StatusDot";
 
+const MOCK_MODE = import.meta.env.VITE_USE_MOCKS !== "false";
+
 const NAV_ITEMS = [
   { to: "/", label: "Queue", end: true },
   { to: "/results", label: "Results" },
@@ -42,9 +44,9 @@ export default function App() {
               ))}
             </nav>
           </div>
-          <div className="flex items-center gap-2 text-2xs text-console-text-muted">
-            <StatusDot tone="allow" />
-            <span>mock mode</span>
+          <div className="flex items-center gap-2 text-2xs text-console-text-muted" data-testid="mode-indicator">
+            <StatusDot tone={MOCK_MODE ? "revise" : "allow"} />
+            <span>{MOCK_MODE ? "mock mode (MSW)" : "live gateway"}</span>
           </div>
         </header>
 

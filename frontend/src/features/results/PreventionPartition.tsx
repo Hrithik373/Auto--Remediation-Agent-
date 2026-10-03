@@ -2,11 +2,20 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 import type { PreventionRow } from "@/mock/fixtures";
 import Card from "@/features/shared/Card";
 
-// Same validated 3-slot categorical set as ParetoChart (dataviz skill palette, dark steps,
-// all-pairs-checked against this console's surface) -- fixed order, distinct dimension (which layer
-// caught the action, not which baseline this is), reused for visual consistency across both figures.
-const SEGMENT_COLOR = { caught_by_envelope: "#3987e5", caught_by_judge_only: "#d95926", missed: "#199e70" };
-const SEGMENT_LABEL = { caught_by_envelope: "Caught by envelope", caught_by_judge_only: "Caught by judge only", missed: "Missed" };
+// Validated with the dataviz skill's validate_palette.js on this card's surface (#11161D, dark mode),
+// in THIS stack order (adjacency is what's checked): missed | envelope | secondary -- all checks PASS.
+// "Missed" was green before, which read as "good"; it can't be red/amber/emerald/violet either, since
+// those hues mean block/revise/allow/escalate (lib/decisionColors.ts). Magenta is the free hue, and it
+// clears the gates only when NOT next to orange -- so "missed" sits first, against the baseline, which
+// is also where the quantity that matters most is easiest to compare across bars.
+const SEGMENT_COLOR = { missed: "#d55181", caught_by_envelope: "#3987e5", caught_by_secondary_only: "#d95926" };
+// "Secondary" = whichever non-envelope layer was active (LLM judge and/or learned verifier): offline,
+// it is the learned verifier, so this must not claim "judge".
+const SEGMENT_LABEL = {
+  caught_by_envelope: "Caught by envelope",
+  caught_by_secondary_only: "Caught by judge/learned only",
+  missed: "Missed (reached executor)",
+};
 
 interface PreventionPartitionProps {
   rows: PreventionRow[];
@@ -28,7 +37,7 @@ export default function PreventionPartition({ rows }: PreventionPartitionProps) 
               stroke="#8A97A6"
               fontSize={11}
             />
-            <YAxis type="category" dataKey="baseline" stroke="#8A97A6" fontSize={11} width={110} />
+            <YAxis type="category" dataKey="baseline" stroke="#8A97A6" fontSize={11} width={130} />
             <Tooltip
               contentStyle={{ background: "#171D26", border: "1px solid #232B36", borderRadius: 6, fontSize: 12 }}
               formatter={(value: number, name) => [`${Math.round(value * 100)}%`, SEGMENT_LABEL[name as keyof typeof SEGMENT_LABEL] ?? name]}
@@ -37,9 +46,9 @@ export default function PreventionPartition({ rows }: PreventionPartitionProps) 
               formatter={(value) => SEGMENT_LABEL[value as keyof typeof SEGMENT_LABEL] ?? value}
               wrapperStyle={{ fontSize: 11, color: "#8A97A6" }}
             />
-            <Bar dataKey="caught_by_envelope" stackId="a" fill={SEGMENT_COLOR.caught_by_envelope} stroke="#0B0F14" strokeWidth={2} />
-            <Bar dataKey="caught_by_judge_only" stackId="a" fill={SEGMENT_COLOR.caught_by_judge_only} stroke="#0B0F14" strokeWidth={2} />
-            <Bar dataKey="missed" stackId="a" fill={SEGMENT_COLOR.missed} stroke="#0B0F14" strokeWidth={2} radius={[0, 3, 3, 0]} />
+            <Bar dataKey="missed" stackId="a" fill={SEGMENT_COLOR.missed} stroke="#0B0F14" strokeWidth={2} isAnimationActive={false} />
+            <Bar dataKey="caught_by_envelope" stackId="a" fill={SEGMENT_COLOR.caught_by_envelope} stroke="#0B0F14" strokeWidth={2} isAnimationActive={false} />
+            <Bar dataKey="caught_by_secondary_only" stackId="a" fill={SEGMENT_COLOR.caught_by_secondary_only} stroke="#0B0F14" strokeWidth={2} radius={[0, 3, 3, 0]} isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
       </div>

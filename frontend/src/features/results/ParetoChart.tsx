@@ -8,9 +8,24 @@ import Card from "@/features/shared/Card";
 // surface (#0B0F14) with --pairs all: lightness band, chroma floor, CVD separation, normal-vision
 // floor, and contrast all PASS. Deliberately distinct from the decision/status hues in
 // lib/decisionColors.ts so a chart series never impersonates allow/block/revise/escalate.
-const SERIES_COLOR = ["#3987e5", "#d95926", "#199e70"];
+// Keyed by ENTITY (verifier variant), never by series index: a filter or a missing variant must not
+// repaint the survivors (dataviz rule "color follows the entity, never its rank").
+const SERIES_COLOR: Record<string, string> = { envelope: "#3987e5", learned: "#d95926", llm_judge: "#199e70" };
+const SERIES_NAME: Record<string, string> = {
+  envelope: "Envelope only",
+  learned: "Envelope + learned",
+  llm_judge: "Envelope + LLM judge",
+};
+const FALLBACK_COLOR = "#8A97A6";
 
-function nearestPoint(points: ParetoPoint[], tau: number): ParetoPoint {
+type PlottedPoint = ParetoPoint & { false_block: number; bad_action_prevented: number };
+
+function plotted(points: ParetoPoint[]): PlottedPoint[] {
+  return points.filter((p): p is PlottedPoint => p.false_block != null && p.bad_action_prevented != null);
+}
+
+function nearestPoint(points: PlottedPoint[], tau: number): PlottedPoint | undefined {
+  if (points.length === 0) return undefined;
   return points.reduce((best, p) => (Math.abs(p.tau - tau) < Math.abs(best.tau - tau) ? p : best));
 }
 
@@ -23,7 +38,7 @@ interface ParetoChartProps {
  * Zustand `tau` RunControls drives, so dragging it here or there stays in sync everywhere. */
 export default function ParetoChart({ series }: ParetoChartProps) {
   const { tau, setTau } = useUiStore();
-  const names = Object.entries(series);
+  const names = Object.entries(series).map(([variant, points]) => [variant, plotted(points)] as const);
 
   return (
     <Card title="Risk–autonomy Pareto">
@@ -68,29 +83,30 @@ export default function ParetoChart({ series }: ParetoChartProps) {
               formatter={(value: number, name) => [`${Math.round(value * 100)}%`, name]}
               labelFormatter={() => ""}
             />
-            <Legend wrapperStyle={{ fontSize: 11, color: "#8A97A6" }} />
-            {names.map(([name, points], i) => (
+            <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 11, color: "#8A97A6" }} />
+            {names.map(([variant, points]) => (
               <Line
-                key={name}
+                key={variant}
                 data={points}
                 dataKey="bad_action_prevented"
-                name={name}
-                stroke={SERIES_COLOR[i % SERIES_COLOR.length]}
+                name={SERIES_NAME[variant] ?? variant}
+                stroke={SERIES_COLOR[variant] ?? FALLBACK_COLOR}
                 strokeWidth={2}
                 dot={{ r: 3 }}
                 activeDot={{ r: 5 }}
                 isAnimationActive={false}
               />
             ))}
-            {names.map(([name, points], i) => {
+            {names.map(([variant, points]) => {
               const p = nearestPoint(points, tau);
+              if (!p) return null;
               return (
                 <ReferenceDot
-                  key={`marker-${name}`}
+                  key={`marker-${variant}`}
                   x={p.false_block}
                   y={p.bad_action_prevented}
                   r={7}
-                  fill={SERIES_COLOR[i % SERIES_COLOR.length]}
+                  fill={SERIES_COLOR[variant] ?? FALLBACK_COLOR}
                   stroke="#0B0F14"
                   strokeWidth={2}
                   isFront

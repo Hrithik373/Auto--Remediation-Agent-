@@ -1,4 +1,4 @@
-.PHONY: setup test offline agent train review run eval report demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
+.PHONY: setup test offline agent train review run eval report demo demo-local gateway e2e mock-results demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
 
 setup:
 	pip install -e ".[dev]"
@@ -48,9 +48,26 @@ eval:
 report:
 	python scripts/run_eval.py --report-only
 
-# Phase P5a/b: the console runs fully against MSW mocks today. P5e (gateway+Grafana+console together)
-# is not implemented yet — see FRONTEND_BLUEPRINT.md §10.
-demo: frontend-dev
+# Phase P5e: the full stack in Docker -- console :4173, gateway :8080, Prometheus :9090, Grafana :3000.
+demo:
+	docker compose up --build
+
+# The live demo without Docker: gateway + console (live mode, :5173). No Prometheus/Grafana.
+demo-local:
+	python scripts/demo_local.py
+
+# Just the gateway (console API + /chat + /metrics) on :8080 against the offline env.
+gateway:
+	SENTINEL_CONFIG=config/offline_eval.yaml uvicorn sentinel.gateway.app:app --app-dir src --port 8080
+
+# Rehearse the live demo (FRONTEND_BLUEPRINT.md §9) in headless Chromium against the real gateway.
+# Needs: pip install playwright && python -m playwright install chromium
+e2e:
+	python scripts/e2e_live_demo.py
+
+# Snapshot `make eval`'s results into the console's mock layer (frontend/src/mock/experiments.json).
+mock-results:
+	python scripts/export_mock_results.py
 
 # Regenerates frontend/src/api/types.ts from src/sentinel/schemas/*.py. Never hand-edit that file --
 # see FRONTEND_BLUEPRINT.md §5.3 and CLAUDE.md's frontend addendum.

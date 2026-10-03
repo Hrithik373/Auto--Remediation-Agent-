@@ -77,6 +77,9 @@ eval:
 gateway:
   host: 0.0.0.0
   port: 8080
+  # Console display pacing between streamed steps. The simulated agent decides a whole run in
+  # milliseconds; this only spaces the SSE events so a viewer can follow the loop. 0 in tests.
+  step_delay_ms: 700
 
 store:
   backend: duckdb

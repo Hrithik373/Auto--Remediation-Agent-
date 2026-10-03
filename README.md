@@ -9,11 +9,16 @@ Full design: [ARCHITECTURE_BLUEPRINT.md](ARCHITECTURE_BLUEPRINT.md). Claude Code
 
 ## Status
 
-Phase **P0** is implemented: Pydantic schemas, the offline environment adapter, and the deterministic
-envelope verifier — the whole pipeline runs and is testable with **zero Kubernetes / zero cluster**.
-The triage console (`frontend/`, [FRONTEND_BLUEPRINT.md](FRONTEND_BLUEPRINT.md)) is also real and
-building — Phases P5a/P5b are done, running fully against mocks. Everything else (P1–P4, P5c–P5e)
-exists as typed interface stubs (see [PROGRESS.md](PROGRESS.md)) ready to be filled in phase by phase.
+Phases **P0–P5** are implemented and run end to end with **zero Kubernetes and no API key**: the
+diagnosis agent (an LLM ReAct agent, or a seeded simulated planner for offline runs), the layered
+verifier (deterministic envelope → LLM judge and/or learned XGBoost verifier, combined by a τ
+threshold), the orchestrator loop, a DuckDB run store, the evaluation harness, and the live triage
+console. Details and what still needs a human, API spend or Docker: [PROGRESS.md](PROGRESS.md).
+
+Headline offline result (`make eval`, 41 incidents × 5 seeds, τ = 0.5): the share of runs in which a
+**destructive action reached execution** falls from 33% (ungated agent) and 21% (envelope only) to
+**1%** (envelope + learned verifier). Read it with the caveats in `runs/eval/results.md`: the
+proposals come from a simulated planner, and most labels are rule-derived.
 
 ## Setup
 
@@ -35,33 +40,38 @@ don't have `make`.)
 
 ## Run it
 
-```bash
-make test       # == pytest -q
-make offline    # == python scripts/offline_demo.py — loads a fixture incident, prints its context,
-                 #    and runs the envelope verifier against a correct and a destructive sample action
-```
+| Command | What it does | Plain equivalent |
+|---|---|---|
+| `make test` | ~620 tests (~15 s) | `pytest -q` |
+| `make agent` | P1: a structured proposal + dry-run result for all 41 incidents; real apply refused | `python scripts/agent_demo.py` |
+| `make run VARIANT=learned` | P2: end-to-end runs into DuckDB, label × decision table | `python scripts/run_offline.py --variant learned` |
+| `make train` | P3: cross-fitted learned verifier + out-of-fold AUC/ECE vs a type-only baseline | `python scripts/train_learned.py` |
+| `make eval` | P4: retrain + 7,585 runs + every table and figure from scratch (~5 min) | `python scripts/run_eval.py` |
+| `make demo-local` | P5: live gateway + console at http://localhost:5173, no Docker | `python scripts/demo_local.py` |
+| `make demo` | P5: full Docker stack — console :4173, gateway :8080, Prometheus :9090, Grafana :3000 | `docker compose up --build` |
+| `make e2e` | rehearses the live demo in headless Chromium against the real gateway | `python scripts/e2e_live_demo.py` |
 
-Expected `make offline` output: an `IncidentContext` summary for `pod-crashloop`, then an `allow`
-verdict for the fixture's labeled-`correct` action and a `block` verdict for its labeled-`destructive`
-action, sourced from `fixtures/incidents/pod-crashloop.json`.
+Everything runs offline by default. The LLM-backed pieces (the ReAct agent, the LLM judge and the
+`combined` variant) need Anthropic credentials and spend money: `make eval WITH_LLM=1`, or
+`AGENT=react make agent`. LLM calls are cached on disk (`runs/llm_cache`), so reruns are free.
 
-`make eval` is a placeholder until Phase P4 is built. `make demo` currently launches the frontend dev
-server (`cd frontend && npm run dev`) running against mocks — see below; the full stack (gateway +
-Grafana + console) isn't wired together yet (Phase P5e).
+`make eval` writes `runs/eval/results.md` (tables with 95% bootstrap CIs) and `runs/eval/figures/`
+(Pareto, prevention partition, calibration, agent-quality ablation); `notebooks/analysis.ipynb` reads
+the same code.
 
 ### Triage console (`frontend/`)
 
 ```bash
 cd frontend
 npm install
-npm run dev          # http://localhost:5173 — mock mode, zero backend required
+npm run dev          # http://localhost:5173 — mock mode (MSW), zero backend required
+npm run dev:live     # live mode: proxies /api to the gateway on :8080 (start it with `make gateway`)
 ```
 
-Every screen (Queue, Triage, Results, Observability) renders from MSW-mocked data modeled on the same
-six offline fixtures the backend uses. Starting a run on the `pod-crashloop` or `bad-rollout-latency`
-incidents streams a simulated live loop end-to-end, including the layered `VerdictCard`. See
-[FRONTEND_BLUEPRINT.md](FRONTEND_BLUEPRINT.md) and [PROGRESS.md](PROGRESS.md) for what's real (P5a/b)
-vs. still mocked (P5c: real SSE from a live gateway; P5d: real experiment numbers from DuckDB).
+Mock mode's Results screen shows a measured snapshot of `make eval` (`make mock-results` refreshes
+it). The header shows which mode you are in. Demo walkthrough: [FRONTEND_BLUEPRINT.md §9](FRONTEND_BLUEPRINT.md);
+`make e2e` checks it end to end (happy path on `bad-rollout-latency`; on `itbench-sre-scenario-12` the
+envelope passes a destructive `cordon_node` and the learned layer blocks it).
 
 ## Repository layout
 
@@ -71,18 +81,21 @@ annotated layout. In short:
 - `src/sentinel/schemas/` — every cross-module payload (Pydantic v2). Read this first.
 - `src/sentinel/env/` — `EnvAdapter` ABC; `offline_adapter.py` is the fully-implemented, cluster-free
   path; `aiopslab_adapter.py` / `itbench_adapter.py` are stubs for later cluster integration.
-- `src/sentinel/verifier/` — the project's contribution. `envelope.py` (deterministic gate) is
-  implemented; `llm_judge.py` (P2) and `learned.py` (P3) are stubs.
-- `src/sentinel/agent/`, `executor/`, `orchestrator/`, `gateway/`, `labeling/`, `eval/`, `store/`,
-  `observability/` — stubs for Phases P1–P5.
+- `src/sentinel/verifier/` — the project's contribution: `envelope.py` (deterministic gate),
+  `llm_judge.py` (v1, fail-closed), `learned.py` + `features.py` (v2, cross-fitted XGBoost), and
+  `policy.py`, which combines them (envelope AND risk < τ, every layer reported).
+- `src/sentinel/agent/` (ReAct + simulated planner), `executor/` (golden rules enforced in code),
+  `orchestrator/` (the loop), `labeling/` (labels with provenance, review CLI), `eval/` (metrics,
+  runner, Pareto, ablations, report, figures), `store/` (DuckDB), `gateway/` (FastAPI: console API
+  with SSE, `/chat`, `/metrics`), `observability/` (Prometheus).
 - `fixtures/incidents/` — 6 hand-built offline incidents plus 35 converted from the public ITBench-Lite
   SRE scenarios (`itbench-sre-scenario-*.json`, see [Data sources](#data-sources)). Each has an oracle
   with labeled example actions across the `correct` / `ineffective` / `destructive` /
   `out_of_envelope` taxonomy from blueprint §6.1.
 - `config/action_envelope.yaml` — the allow-listed action types + param schemas the envelope verifier
   enforces.
-- `tests/` — `test_schemas.py` and `test_envelope.py` are real; the rest are phase-gated placeholders
-  (`pytest.skip`) that turn into real tests as each phase lands.
+- `tests/` — one test module per component; the suite never needs the network, a cluster, an API
+  key or the raw ITBench download.
 
 ## Data sources
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiPost, sseUrl } from "./client";
 import type { RunRecord, StepRecord } from "./types";
+import type { VerifierChoice } from "@/store/ui";
 
 export function useRuns() {
   return useQuery({
@@ -20,7 +21,7 @@ export function useRun(runId: string | null | undefined) {
 
 interface StartRunInput {
   incident_id: string;
-  verifier: "envelope" | "llm_judge" | "learned" | "combined";
+  verifier: VerifierChoice;
   tau: number;
   dry_run: boolean;
 }
