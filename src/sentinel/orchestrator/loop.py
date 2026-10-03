@@ -19,7 +19,7 @@ per CLAUDE.md, "no experiment result exists unless it's a RunRecord row in DuckD
 
 from __future__ import annotations
 
-from sentinel.agent.react import DiagnosisAgent
+from sentinel.agent.base import DiagnosisAgent
 from sentinel.env.base import EnvAdapter
 from sentinel.executor.executor import Executor
 from sentinel.schemas.run import RunRecord

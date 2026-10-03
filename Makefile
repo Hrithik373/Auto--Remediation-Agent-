@@ -1,4 +1,4 @@
-.PHONY: setup test offline eval demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
+.PHONY: setup test offline agent eval demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
 
 setup:
 	pip install -e ".[dev]"
@@ -8,6 +8,11 @@ test:
 
 offline:
 	python scripts/offline_demo.py
+
+# Phase P1 acceptance: a structured proposal + dry-run result for every fixture; real apply refused.
+# AGENT=react uses the LLM ReAct agent (needs Anthropic credentials); default is config agent.kind.
+agent:
+	python scripts/agent_demo.py $(if $(AGENT),--agent $(AGENT),)
 
 # ITBench-Lite -> fixtures (docs/tasks/itbench_converter_spec.md). The fetch is a separate, one-time
 # ~14 GB download into data/ (gitignored); convert never downloads.

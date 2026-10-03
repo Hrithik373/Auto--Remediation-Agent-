@@ -10,6 +10,30 @@ models:
   llm_judge: claude-sonnet-5           # Phase P2
   max_tokens_per_call: 4096
 
+# USD per 1M tokens (Anthropic first-party API rates, cached 2026-09-25). Used by
+# gateway/clients.py's UsageLedger for per-incident cost. A model missing here is costed at 0 and
+# flagged `cost_known: false` rather than guessed.
+pricing_usd_per_mtok:
+  claude-opus-5-5: { input: 4.00, output: 20.00 }
+  claude-sonnet-5-5: { input: 2.00, output: 10.00 }
+  claude-sonnet-5: { input: 2.00, output: 10.00 }
+  claude-haiku-4-5: { input: 1.00, output: 5.00 }
+
+agent:
+  # react     -- the LLM ReAct agent (agent/react.py); needs Anthropic credentials.
+  # simulated -- a seeded, LLM-free proposal generator (agent/simulated.py) so the full pipeline and
+  #              the eval harness run offline. It is a controlled stimulus for the VERIFIER, not a
+  #              diagnosis result: it samples from each incident's oracle candidates by label mix.
+  kind: simulated
+  max_tool_calls: 8
+  llm_cache_dir: runs/llm_cache   # disk cache of LLM calls, so eval reruns are free + reproducible
+  simulated:
+    # Probability of each ground-truth label on a fresh proposal. Tuned to resemble an imperfect
+    # agent; swept as an ablation in Phase P4.
+    label_mix: { correct: 0.45, ineffective: 0.25, destructive: 0.2, out_of_envelope: 0.1 }
+    # After verifier feedback ("revise"), weight on `correct` is multiplied by this.
+    feedback_correct_boost: 1.5
+
 budgets:
   context_tokens: 8000       # per-incident telemetry compaction target (schemas/incident.py)
   max_steps: 6                # orchestrator loop cap (blueprint §5)
