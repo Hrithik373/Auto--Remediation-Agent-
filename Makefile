@@ -1,4 +1,4 @@
-.PHONY: setup test offline agent run eval demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
+.PHONY: setup test offline agent train review run eval demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
 
 setup:
 	pip install -e ".[dev]"
@@ -13,6 +13,15 @@ offline:
 # AGENT=react uses the LLM ReAct agent (needs Anthropic credentials); default is config agent.kind.
 agent:
 	python scripts/agent_demo.py $(if $(AGENT),--agent $(AGENT),)
+
+# Phase P3 acceptance: labeled dataset split by incident; cross-fitted XGBoost verifier with
+# out-of-fold AUC/ECE (and the type-only baseline it must beat). Writes runs/models/.
+train:
+	python scripts/train_learned.py
+
+# Human review of needs_review labels: make review FIXTURE=fixtures/incidents/<id>.json REVIEWER=<name>
+review:
+	python -m sentinel.labeling.review_cli $(FIXTURE) --reviewer $(or $(REVIEWER),reviewer)
 
 # Phase P2 acceptance: end-to-end runs on every fixture -> RunRecords in DuckDB.
 # VARIANT = none | envelope | llm_judge | learned | combined (llm_judge needs Anthropic credentials).

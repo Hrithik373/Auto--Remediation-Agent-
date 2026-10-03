@@ -31,14 +31,15 @@ def build_agent(
     if kind == "simulated":
         from sentinel.agent.simulated import SimulatedDiagnosisAgent
 
-        labeled_actions = getattr(env, "labeled_actions", None)
-        if labeled_actions is None:
+        candidate_actions = getattr(env, "candidate_actions", None)
+        if candidate_actions is None:
             raise ValueError(
-                "agent.kind=simulated needs an env exposing labeled_actions() (OfflineEnvAdapter)"
+                "agent.kind=simulated needs an env exposing candidate_actions() (OfflineEnvAdapter)"
             )
         sim = agent_cfg.get("simulated", {})
+        augmented = bool(sim.get("include_augmented", True))
         return SimulatedDiagnosisAgent(
-            labeled_actions,
+            lambda incident_id: candidate_actions(incident_id, augmented=augmented),
             seed=seed,
             label_mix=sim.get("label_mix"),
             feedback_correct_boost=sim.get("feedback_correct_boost", 1.5),

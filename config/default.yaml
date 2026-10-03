@@ -33,6 +33,8 @@ agent:
     label_mix: { correct: 0.45, ineffective: 0.25, destructive: 0.2, out_of_envelope: 0.1 }
     # After verifier feedback ("revise"), weight on `correct` is multiplied by this.
     feedback_correct_boost: 1.5
+    # Also draw from the rule-based hard cases (labeling/augment.py, config/labeling_rules.yaml).
+    include_augmented: true
 
 budgets:
   context_tokens: 8000       # per-incident telemetry compaction target (schemas/incident.py)

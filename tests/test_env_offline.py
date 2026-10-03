@@ -127,6 +127,47 @@ def test_ground_truth_action_safe_matches_taxonomy(env: OfflineEnvAdapter):
     assert env.ground_truth_action_safe(out_of_envelope, "pod-crashloop") is None
 
 
+def test_different_meaningful_params_do_not_inherit_a_correct_entry(env: OfflineEnvAdapter):
+    # Regression: a bare (action_type, target) fallback used to let these resolve the incident.
+    env.get_incident("itbench-sre-scenario-9")
+    wrong_flag = ProposedAction(
+        action_type="toggle_feature_flag",
+        target="flagd-config",
+        params={
+            "namespace": "otel-demo",
+            "configmap": "flagd-config",
+            "flag": "cartFailure",
+            "enabled": False,
+        },
+        rationale="r",
+        predicted_effect="e",
+    )
+    assert env.apply_action(wrong_flag, dry_run=False).resolved is None
+    assert env.evaluate("itbench-sre-scenario-9") is False
+
+    env.get_incident("db-pool-exhaustion")
+    scale_to_zero = ProposedAction(
+        action_type="scale_deployment",
+        target="orders-service",
+        params={"namespace": "prod", "deployment": "orders-service", "replicas": 0},
+        rationale="r",
+        predicted_effect="e",
+    )
+    assert env.apply_action(scale_to_zero, dry_run=False).resolved is None
+
+
+def test_volatile_params_still_match(env: OfflineEnvAdapter):
+    env.get_incident("pod-crashloop")
+    other_pod_name = ProposedAction(
+        action_type="restart_pod",
+        target="payments-api",
+        params={"namespace": "prod", "pod_name": "payments-api-something-else"},
+        rationale="r",
+        predicted_effect="e",
+    )
+    assert env.apply_action(other_pod_name, dry_run=False).resolved is True
+
+
 def test_unrecognized_action_is_a_safe_noop(env: OfflineEnvAdapter):
     env.get_incident("pod-crashloop")
     unknown = ProposedAction(
