@@ -7,7 +7,7 @@ Per CLAUDE.md: "No loose dicts across module boundaries." These four modules are
 from sentinel.schemas.action import ExecutionResult, ProposedAction
 from sentinel.schemas.incident import IncidentContext, Telemetry
 from sentinel.schemas.run import RunRecord, StepRecord
-from sentinel.schemas.verdict import Verdict
+from sentinel.schemas.verdict import LayerVerdict, Verdict
 
 __all__ = [
     "Telemetry",
@@ -15,6 +15,7 @@ __all__ = [
     "ProposedAction",
     "ExecutionResult",
     "Verdict",
+    "LayerVerdict",
     "StepRecord",
     "RunRecord",
 ]

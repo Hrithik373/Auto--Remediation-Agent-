@@ -27,3 +27,19 @@ tests in the same commit as the code.
 - Don't add a heavy agent framework; keep the ReAct loop in-repo and readable.
 - Don't invent metrics; use the ones in eval/metrics.py.
 - Don't let the diagnosis agent and the verifier share state or prompts — they must be independent.
+
+## Frontend conventions (sentinel-console)
+See [FRONTEND_BLUEPRINT.md](FRONTEND_BLUEPRINT.md) for the full spec (Phase P5).
+- Types in src/api/types.ts are GENERATED from Pydantic (make types). Never hand-edit them.
+  If the UI needs a field, add it to the Pydantic schema first, then regenerate.
+- The frontend must build and run fully against MSW mocks with the backend down (mock mode).
+  Never let a component hard-require a live endpoint to render.
+- Color means decision everywhere: use lib/decisionColors.ts. Never hardcode allow/block colors.
+  Chart series colors are a separate, validated categorical set (dataviz skill) — never reuse a
+  decision/status hue for a chart series identity, and never pick chart colors without running
+  scripts/validate_palette.js against the console's actual surface first.
+- Anything a machine emitted (logs, params, action_type, IDs, risk scores) renders in monospace.
+- The live run is an EventSource, NOT a TanStack Query. Do not poll for step updates.
+- No localStorage/sessionStorage. UI state lives in Zustand; server state in TanStack Query.
+- VerdictCard must always show ALL layers (graying out inactive ones), never just the final decision —
+  the layered view is the project's contribution and must stay visible.

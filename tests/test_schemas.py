@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from sentinel.schemas.action import ExecutionResult, ProposedAction
 from sentinel.schemas.incident import IncidentContext, Telemetry
 from sentinel.schemas.run import RunRecord, StepRecord
-from sentinel.schemas.verdict import Verdict
+from sentinel.schemas.verdict import LayerVerdict, Verdict
 
 
 def _telemetry(**overrides) -> Telemetry:
@@ -110,6 +110,34 @@ class TestVerdict:
     def test_verdict_risk_score_bounds(self, risk_score):
         with pytest.raises(ValidationError):
             Verdict(decision="block", risk_score=risk_score, reasons=[], verifier="envelope")
+
+    def test_verdict_layers_default_to_empty(self):
+        verdict = Verdict(decision="allow", risk_score=0.1, reasons=["ok"], verifier="envelope")
+        assert verdict.layers == []
+
+    def test_verdict_layers_round_trip_for_combined_decision(self):
+        verdict = Verdict(
+            decision="block",
+            risk_score=0.91,
+            reasons=["judge and learned both flagged this action"],
+            verifier="combined",
+            layers=[
+                LayerVerdict(
+                    verifier="envelope", decision="allow", risk_score=0.1, reasons=["structurally valid"]
+                ),
+                LayerVerdict(
+                    verifier="llm_judge",
+                    decision="block",
+                    risk_score=0.87,
+                    reasons=["cordon_node drains healthy pods unrelated to the fault"],
+                ),
+                LayerVerdict(verifier="learned", decision="skipped", reasons=[]),
+            ],
+        )
+        restored = Verdict.model_validate_json(verdict.model_dump_json())
+        assert restored == verdict
+        assert restored.layers[2].decision == "skipped"
+        assert restored.layers[2].risk_score is None
 
 
 class TestRunSchemas:
