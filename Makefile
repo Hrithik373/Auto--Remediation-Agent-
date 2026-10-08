@@ -1,4 +1,4 @@
-.PHONY: setup test offline agent train review run eval report demo demo-local gateway e2e mock-results demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
+.PHONY: setup test offline agent train review run eval report demo demo-local gateway e2e report-pdf mock-results demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
 
 setup:
 	pip install -e ".[dev]"
@@ -64,6 +64,11 @@ gateway:
 # Needs: pip install playwright && python -m playwright install chromium
 e2e:
 	python scripts/e2e_live_demo.py
+
+# The architecture & evaluation report (docs/architecture_report.pdf), filled from `make eval` outputs
+# and `make e2e` screenshots. Title-page details: docs/report/report_meta.yaml.
+report-pdf:
+	python scripts/build_report.py
 
 # Snapshot `make eval`'s results into the console's mock layer (frontend/src/mock/experiments.json).
 mock-results:

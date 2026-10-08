@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{title}} — front matter</title>
+<link rel="stylesheet" href="report.css">
+</head>
+<body>
+
+<section class="titlepage">
+  <div>
+    <div class="kicker">{{programme}}</div>
+    <div class="title">{{title}}</div>
+    <div class="subtitle">{{subtitle}}</div>
+    <div class="codename">{{codename}}</div>
+  </div>
+  <div>
+    <div class="rule"></div>
+    <div style="font-size:12pt;font-weight:600;margin-bottom:6mm">{{document}}</div>
+    <div class="meta">
+      <div><span class="k">Submitted by</span><br><b>{{author}}</b> &nbsp;·&nbsp; {{roll_number}}</div>
+      <div style="margin-top:4mm"><span class="k">Under the guidance of</span><br><b>{{guide}}</b></div>
+      <div style="margin-top:4mm">{{department}}<br>{{institute}}</div>
+    </div>
+  </div>
+  <div class="foot">{{date}} &nbsp;·&nbsp; generated from repository commit <span class="mono">{{commit}}</span></div>
+</section>
+
+<section class="abstract">
+  <h1>Abstract</h1>
+  <p>Large language models can now read an incident's logs, metrics, traces and topology and propose a
+  remediation, but they cannot be trusted to execute it: a fluent, plausible proposal may cordon a
+  healthy node, restart a shared database or switch on a fault-injection flag. This project builds and
+  evaluates <b>sentinel-remediate</b>, a remediation agent in which the LLM is treated strictly as an
+  <i>untrusted planner</i>. Every proposed action passes through a layered <b>pre-execution verifier</b>
+  before it can reach the environment: a deterministic action envelope (allow-list, typed parameters,
+  blast-radius and namespace policy), an independent LLM judge, and a learned, calibrated risk model,
+  combined by a single risk threshold τ that trades safety against autonomy.</p>
+  <p>The system is built to run end-to-end with no Kubernetes cluster and no API key. It uses an offline
+  environment of {{n_incidents}} incidents — 6 hand-built and 35 converted from IBM's public ITBench-Lite
+  SRE scenarios — with a provenance trail on every ground-truth label. A seeded evaluation harness
+  writes every run to DuckDB and regenerates every table and figure from scratch.</p>
+  <p>Over {{n_runs}} runs, with τ = 0.5 and a simulated planner, the share of runs in which a
+  <b>destructive action reached execution</b> falls from {{unsafe_none}} (ungated agent) and
+  {{unsafe_env}} (envelope only) to <b>{{unsafe_learned}}</b> with the learned layer, which stops
+  {{residue_caught}} of the destructive proposals that pass the envelope. Escalating every block costs
+  autonomy, but retrying blocked actions with the verifier's reasons restores resolution to
+  {{res_learned_retry}} at {{netsafe_learned_retry}} net-safe resolution, against {{netsafe_none}} for
+  the ungated agent. The report sets these results against a type-only baseline and states the
+  threats to their validity: simulated proposals, rule-derived labels, and curated topology.</p>
+  <p class="keywords"><b>Keywords:</b> AIOps, incident remediation, LLM agents, guardrails, pre-execution
+  verification, calibrated risk, safety–autonomy trade-off, ITBench.</p>
+</section>
+
+<section class="toc">
+  <h1>Contents</h1>
+  {{toc}}
+  <h2>List of figures</h2>
+  {{lof}}
+  <h2>List of tables</h2>
+  {{lot}}
+</section>
+
+</body>
+</html>

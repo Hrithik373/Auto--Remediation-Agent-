@@ -1,0 +1,12 @@
+# Title-page details for docs/architecture_report.pdf (scripts/build_report.py).
+# Fill these in and run `make report-pdf` again -- nothing else needs editing.
+title: "A Safety-Gated LLM Auto-Remediation Agent for AIOps"
+subtitle: "Pre-execution verification of untrusted remediation proposals, with a measured safety–autonomy trade-off"
+codename: "sentinel-remediate"
+document: "System Architecture & Evaluation Report"
+author: "[Student name]"
+roll_number: "[Roll number]"
+programme: "M.Tech, 3rd Semester Project"
+department: "[Department]"
+institute: "[Institute]"
+guide: "[Project guide]"

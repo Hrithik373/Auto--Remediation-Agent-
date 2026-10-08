@@ -1,0 +1,1127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{title}} — report body</title>
+<link rel="stylesheet" href="report.css">
+</head>
+<body>
+
+<!-- =============================================================================================== -->
+<h1 class="first" id="s1"><span class="num">1</span>Introduction</h1>
+
+<h2 id="s1-1"><span class="num">1.1</span>Problem</h2>
+<p>Site-reliability engineering is moving from runbooks toward agents: an LLM reads an incident's
+telemetry, forms a diagnosis, and proposes a remediation such as rolling back a deployment, scaling a
+service or disabling a feature flag. The diagnosis step is now often good. The hard part is the
+step after it. A proposal that is fluent and plausible can still be operationally wrong in ways
+that make the incident worse, for example:</p>
+<ul>
+  <li>cordoning a healthy node,</li>
+  <li>scaling a shared dependency to zero,</li>
+  <li>restarting the database every service depends on, or</li>
+  <li>switching on a fault-injection flag.</li>
+</ul>
+<p>Letting such an agent act directly on a production control plane is unsafe. Making it ask a
+human every time throws away the autonomy that motivated it.</p>
+
+<h2 id="s1-2"><span class="num">1.2</span>Approach</h2>
+<p>This project treats the LLM strictly as an <b>untrusted planner</b>. Proposal generation is
+separated from execution, and every proposed action must pass a <b>pre-execution verifier</b> before
+it can reach the environment. The verifier is layered:</p>
+<ul>
+  <li>a <b>deterministic envelope</b> that never consults a model: allow-listed action types, typed
+  and bounded parameters, a blast-radius cap, and forbidden namespaces;</li>
+  <li>an independent <b>LLM judge</b> (v1);</li>
+  <li>a <b>learned verifier</b> (v2) that outputs a calibrated probability that the action is
+  destructive.</li>
+</ul>
+<p>A single risk threshold τ combines the layers: an action executes only if the envelope passes it
+<i>and</i> its risk is below τ. Sweeping τ produces a measured <b>safety–autonomy trade-off</b>
+(a Pareto curve) rather than a single operating point.</p>
+
+<h2 id="s1-3"><span class="num">1.3</span>Contributions</h2>
+<ol>
+  <li><b>A layered pre-execution verification architecture</b> for AIOps remediation. It is
+  independent of the agent, records every layer's decision on every verdict, and enforces the safety
+  rules in code: nothing executes without an <code>allow</code> verdict and an explicit configuration
+  opt-in.</li>
+  <li><b>An offline, cluster-free evaluation environment</b> of {{n_incidents}} incidents. Thirty-five
+  of them are converted from IBM's ITBench-Lite SRE scenarios by a converter that records the
+  provenance of every label and keeps ground truth out of agent-visible telemetry.</li>
+  <li><b>A learned, calibrated risk model</b> evaluated with incident-level cross-fitting, and
+  compared against a type-only baseline so that its gains are not overstated.</li>
+  <li><b>A reproducible evaluation harness.</b> {{n_runs}} seeded runs are stored as rows in DuckDB,
+  and one command regenerates every number and figure in this report.</li>
+  <li><b>A live triage console</b> that streams the loop step by step and shows the layered verdict.
+  A headless-browser rehearsal of the demonstration checks it end to end.</li>
+</ol>
+
+<h2 id="s1-4"><span class="num">1.4</span>Scope</h2>
+<p>The project studies <i>operational correctness</i>: whether a well-intentioned but fallible
+agent's action would harm the system. It does not study adversarial safety such as prompt
+injection or jailbreaks. All results in this report come from the offline environment with a
+simulated planner. The LLM-backed baselines are implemented and tested, but their evaluation is left
+as a cost decision (§10.3).</p>
+
+<table>
+  <caption><b>Table 1.</b> Build phases and where each is described.</caption>
+  <tr><th>Phase</th><th>Deliverable</th><th>Section</th></tr>
+  <tr><td>P0</td><td>Pydantic contracts, offline environment adapter, deterministic envelope, fixtures</td><td>§5, §6.1, §6.4</td></tr>
+  <tr><td>P1</td><td>Diagnosis agents (ReAct, simulated), context builder, dry-run executor, LLM client + cost ledger</td><td>§6.2, §6.3, §6.5</td></tr>
+  <tr><td>P2</td><td>LLM judge, combined policy, orchestrator loop, DuckDB run store</td><td>§6.4, §6.6, §6.7</td></tr>
+  <tr><td>P3</td><td>Labeling pipeline, features, learned verifier, review CLI</td><td>§6.4, §7</td></tr>
+  <tr><td>P4</td><td>Evaluation harness: baselines, τ sweep, ablations, report figures</td><td>§8, §9</td></tr>
+  <tr><td>P5</td><td>Gateway API with live streaming, observability, triage console, containerised demo</td><td>§6.8–§6.10</td></tr>
+</table>
+
+<!-- =============================================================================================== -->
+<h1 id="s2"><span class="num">2</span>Background</h1>
+
+<h2 id="s2-1"><span class="num">2.1</span>LLM agents for incident remediation</h2>
+<p>An AIOps remediation agent sees an incident through its observability signals:</p>
+<ul>
+  <li>logs, metrics and traces;</li>
+  <li>the service topology;</li>
+  <li>firing alerts.</li>
+</ul>
+<p>It must output an action against the control plane. Benchmarks such as Microsoft's AIOpsLab and
+IBM's ITBench [1] run these tasks against faults injected into microservice systems. Most of the
+agent's mistakes are not malicious. They are <i>wrong actions taken confidently</i>: the agent
+targets the component that shows symptoms instead of the cause, or picks an action whose blast
+radius is out of proportion to the fault.</p>
+
+<h2 id="s2-2"><span class="num">2.2</span>Guarding agent actions</h2>
+<p>Three families of controls are common:</p>
+<ul>
+  <li><b>allow-lists and policy engines</b>: deterministic, auditable and cheap, but blind to whether
+  a structurally valid action is right <i>for this incident</i>;</li>
+  <li><b>LLM-as-judge review</b>: semantically aware, but costly, non-deterministic, and itself
+  fallible;</li>
+  <li><b>learned risk models</b>: cheap at inference and calibratable, but only as good as their
+  labels.</li>
+</ul>
+<p>This project composes all three and measures what each layer adds. The headline question is
+<i>which layer caught which destructive proposal</i>, reported as the prevention partition
+(§9.2).</p>
+
+<h2 id="s2-3"><span class="num">2.3</span>The safety–autonomy trade-off</h2>
+<p>Any verifier trades two errors against each other:</p>
+<ul>
+  <li><b>missing</b> a destructive action (unsafe execution);</li>
+  <li><b>blocking</b> a correct one (false block, lost autonomy).</li>
+</ul>
+<p>The project reports both sides at every threshold: bad-action-prevented against false-block, and
+resolution against τ. It also separates the verifier's own errors from the orchestration policy's
+response to a block (§9.3). In the results these turn out to matter as much as each other.</p>
+
+<!-- =============================================================================================== -->
+<h1 id="s3"><span class="num">3</span>Requirements and Design Principles</h1>
+<p>Five rules govern the whole design. They are enforced in code and covered by tests, not just
+written down as conventions.</p>
+
+<table>
+  <caption><b>Table 2.</b> Design principles and where they are enforced.</caption>
+  <tr><th style="width:30%">Principle</th><th>Enforcement</th></tr>
+  <tr><td><b>The LLM is an untrusted planner.</b> No action reaches real execution without passing the verifier policy.</td>
+      <td><code>Executor.run(dry_run=False)</code> raises <code>ExecutionRefused</code> unless it is given an <code>allow</code> verdict; rollback only <i>plans</i> an inverse action, which must itself be verified.</td></tr>
+  <tr><td><b>Real execution is opt-in.</b> <code>auto_execute</code> is false everywhere by default.</td>
+      <td>Default config ships <code>auto_execute: false</code> (tested). The gateway returns HTTP 403 for <code>dry_run=false</code> unless the loaded config opts in.</td></tr>
+  <tr><td><b>Typed contracts.</b> Every cross-module payload is a Pydantic model.</td>
+      <td><code>src/sentinel/schemas</code>; the console's TypeScript types are <i>generated</i> from these models, never hand-written.</td></tr>
+  <tr><td><b>Offline first.</b> The system runs end to end with no cluster and no API key.</td>
+      <td><code>OfflineEnvAdapter</code>, the simulated planner, and lazy imports of the Anthropic SDK and cluster clients. A fresh clone passes the full test suite with no network.</td></tr>
+  <tr><td><b>Independence.</b> The agent and the verifier share no state or prompts.</td>
+      <td>Separate prompts, separate LLM client handles and separate usage ledgers. The judge sees the proposal only as data. Ground-truth labels are attached <i>after</i> the verdict.</td></tr>
+</table>
+
+<p>Two further requirements shape the evaluation:</p>
+<ul>
+  <li><b>reproducibility</b>: all randomness is seeded from config, every run records a
+  <code>config_hash</code>, and <code>make eval</code> regenerates every figure from scratch;</li>
+  <li><b>persistence</b>: a result does not exist unless it is a run record in DuckDB.</li>
+</ul>
+
+<!-- =============================================================================================== -->
+<h1 id="s4"><span class="num">4</span>System Architecture</h1>
+
+<h2 id="s4-1"><span class="num">4.1</span>Overview</h2>
+<p>Fig. 1 shows the components and how they connect. The <b>orchestrator</b> owns the loop. Inside
+it, an incident flows from the environment adapter through the context builder to the diagnosis
+agent. The agent's proposal then goes to the verifier policy, and only an <code>allow</code> verdict
+reaches the executor, which is the single path back into the environment. Blocks and revise
+decisions go back to the agent as feedback. Outside the loop, the run store persists every run; the
+evaluation harness and the gateway read from it; and the console and the observability stack sit in
+front of the gateway.</p>
+
+<figure>
+<svg viewBox="0 0 720 478" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif" font-size="9">
+  <defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3d3c39"/></marker></defs>
+  <rect x="10" y="12" width="700" height="276" rx="8" fill="#f4f4f1" stroke="#c3c2b7"/>
+  <text x="24" y="32" font-size="10" font-weight="700" fill="#0b0b0b">ORCHESTRATOR</text>
+  <text x="112" y="32" font-size="9" fill="#52514e">orchestrator/loop.py · diagnose → propose → verify → act / revise / escalate · ≤ max_steps</text>
+  <!-- env -->
+  <rect x="24" y="80" width="118" height="88" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="83" y="100" text-anchor="middle" font-weight="700">EnvAdapter</text>
+  <text x="83" y="117" text-anchor="middle">OfflineEnvAdapter</text>
+  <text x="83" y="131" text-anchor="middle">41 incidents · oracle</text>
+  <text x="83" y="151" text-anchor="middle" fill="#6b6a65">AIOpsLab / ITBench</text>
+  <text x="83" y="162" text-anchor="middle" fill="#6b6a65">adapters (same ABC)</text>
+  <!-- context -->
+  <rect x="166" y="80" width="112" height="88" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="222" y="100" text-anchor="middle" font-weight="700">Context builder</text>
+  <text x="222" y="117" text-anchor="middle">token budget</text>
+  <text x="222" y="131" text-anchor="middle">redaction</text>
+  <text x="222" y="145" text-anchor="middle">no ground truth shown</text>
+  <text x="222" y="159" text-anchor="middle" fill="#6b6a65">4 tools · signal ablation</text>
+  <!-- agent -->
+  <rect x="302" y="80" width="112" height="88" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="358" y="100" text-anchor="middle" font-weight="700">Diagnosis agent</text>
+  <text x="358" y="117" text-anchor="middle">ReAct (LLM) or</text>
+  <text x="358" y="131" text-anchor="middle">seeded simulated</text>
+  <text x="358" y="152" text-anchor="middle" font-style="italic" fill="#d03b3b">untrusted planner</text>
+  <!-- verifier group -->
+  <rect x="438" y="48" width="136" height="214" rx="6" fill="#fff" stroke="#2a78d6" stroke-dasharray="4 3"/>
+  <text x="506" y="64" text-anchor="middle" font-weight="700" fill="#2a78d6">Verifier policy</text>
+  <rect x="448" y="74" width="116" height="42" rx="4" fill="#eef4fc" stroke="#2a78d6"/>
+  <text x="506" y="91" text-anchor="middle" font-weight="700">Envelope</text>
+  <text x="506" y="106" text-anchor="middle" font-size="8">deterministic hard gate</text>
+  <rect x="448" y="124" width="116" height="42" rx="4" fill="#ecf8f3" stroke="#1baf7a"/>
+  <text x="506" y="141" text-anchor="middle" font-weight="700">LLM judge (v1)</text>
+  <text x="506" y="156" text-anchor="middle" font-size="8">independent · fail-closed</text>
+  <rect x="448" y="174" width="116" height="42" rx="4" fill="#fdf0e9" stroke="#eb6834"/>
+  <text x="506" y="191" text-anchor="middle" font-weight="700">Learned (v2)</text>
+  <text x="506" y="206" text-anchor="middle" font-size="8">calibrated P(destructive)</text>
+  <text x="506" y="240" text-anchor="middle" font-weight="700">pass ∧ max risk &lt; τ</text>
+  <text x="506" y="253" text-anchor="middle" font-size="8" fill="#6b6a65">all layers recorded</text>
+  <!-- executor -->
+  <rect x="596" y="80" width="104" height="88" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="648" y="100" text-anchor="middle" font-weight="700">Executor</text>
+  <text x="648" y="117" text-anchor="middle">needs allow verdict</text>
+  <text x="648" y="131" text-anchor="middle">+ auto_execute</text>
+  <text x="648" y="145" text-anchor="middle">dry-run default</text>
+  <text x="648" y="159" text-anchor="middle" fill="#6b6a65">rollback = plan only</text>
+  <!-- main flow -->
+  <line x1="142" y1="124" x2="164" y2="124" stroke="#3d3c39" marker-end="url(#a1)"/>
+  <line x1="278" y1="124" x2="300" y2="124" stroke="#3d3c39" marker-end="url(#a1)"/>
+  <line x1="414" y1="124" x2="436" y2="124" stroke="#3d3c39" marker-end="url(#a1)"/>
+  <line x1="574" y1="124" x2="594" y2="124" stroke="#3d3c39" marker-end="url(#a1)"/>
+  <!-- feedback -->
+  <path d="M438,236 H358 V170" fill="none" stroke="#eb6834" stroke-dasharray="4 3" marker-end="url(#a1)"/>
+  <text x="432" y="250" text-anchor="end" font-size="8" fill="#b24f22">feedback: revise / block reasons</text>
+  <!-- apply -->
+  <path d="M648,168 V276 H52 V170" fill="none" stroke="#3d3c39" marker-end="url(#a1)"/>
+  <text x="250" y="272" font-size="8" fill="#3d3c39">apply_action(dry_run) → ExecutionResult · env.evaluate()</text>
+  <!-- labeler -->
+  <rect x="74" y="190" width="200" height="40" rx="4" fill="#fff" stroke="#6b6a65" stroke-dasharray="3 3"/>
+  <text x="174" y="207" text-anchor="middle" font-weight="700" fill="#3d3c39">Oracle labeler (eval-only)</text>
+  <text x="174" y="221" text-anchor="middle" font-size="8" fill="#6b6a65">label attached after the verdict → StepRecord</text>
+  <line x1="100" y1="168" x2="100" y2="188" stroke="#6b6a65" stroke-dasharray="3 3" marker-end="url(#a1)"/>
+  <!-- row 2 -->
+  <rect x="10" y="318" width="160" height="62" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="90" y="337" text-anchor="middle" font-weight="700">Run store · DuckDB</text>
+  <text x="90" y="353" text-anchor="middle">RunRecord + StepRecord rows</text>
+  <text x="90" y="368" text-anchor="middle" fill="#6b6a65">every run is a row</text>
+  <rect x="192" y="318" width="170" height="62" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="277" y="337" text-anchor="middle" font-weight="700">Evaluation harness</text>
+  <text x="277" y="353" text-anchor="middle">metrics · Pareto · ablations</text>
+  <text x="277" y="368" text-anchor="middle" fill="#6b6a65">bootstrap CIs · figures</text>
+  <rect x="384" y="318" width="160" height="62" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="464" y="337" text-anchor="middle" font-weight="700">Gateway · FastAPI</text>
+  <text x="464" y="353" text-anchor="middle">/api · SSE stream · /chat</text>
+  <text x="464" y="368" text-anchor="middle" fill="#6b6a65">/metrics</text>
+  <rect x="566" y="318" width="144" height="62" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="638" y="337" text-anchor="middle" font-weight="700">Triage console</text>
+  <text x="638" y="353" text-anchor="middle">React · live loop</text>
+  <text x="638" y="368" text-anchor="middle" fill="#6b6a65">layered VerdictCard</text>
+  <line x1="90" y1="288" x2="90" y2="316" stroke="#3d3c39" marker-end="url(#a1)"/>
+  <text x="96" y="306" font-size="8">RunRecord</text>
+  <line x1="170" y1="349" x2="190" y2="349" stroke="#3d3c39" marker-end="url(#a1)"/>
+  <line x1="362" y1="349" x2="382" y2="349" stroke="#3d3c39" marker-end="url(#a1)"/>
+  <line x1="544" y1="349" x2="564" y2="349" stroke="#3d3c39" marker-end="url(#a1)"/>
+  <line x1="464" y1="316" x2="464" y2="290" stroke="#3d3c39" marker-end="url(#a1)"/>
+  <text x="470" y="306" font-size="8">starts runs (background thread)</text>
+  <!-- row 3 -->
+  <rect x="10" y="408" width="160" height="56" rx="5" fill="#fff" stroke="#6b6a65" stroke-dasharray="3 3"/>
+  <text x="90" y="426" text-anchor="middle" font-weight="700" fill="#3d3c39">Anthropic API (optional)</text>
+  <text x="90" y="441" text-anchor="middle" font-size="8">via LLMClient: disk cache,</text>
+  <text x="90" y="453" text-anchor="middle" font-size="8">per-component cost ledger</text>
+  <rect x="192" y="408" width="170" height="56" rx="5" fill="#fff" stroke="#6b6a65" stroke-dasharray="3 3"/>
+  <text x="277" y="426" text-anchor="middle" font-weight="700" fill="#3d3c39">ITBench-Lite converter</text>
+  <text x="277" y="441" text-anchor="middle" font-size="8">35 SRE scenarios → fixture JSON</text>
+  <text x="277" y="453" text-anchor="middle" font-size="8">(+ 6 hand-built) → EnvAdapter</text>
+  <rect x="384" y="408" width="160" height="56" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="464" y="430" text-anchor="middle" font-weight="700">Prometheus</text>
+  <text x="464" y="446" text-anchor="middle" font-size="8">scrapes gateway /metrics</text>
+  <rect x="566" y="408" width="144" height="56" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="638" y="430" text-anchor="middle" font-weight="700">Grafana</text>
+  <text x="638" y="446" text-anchor="middle" font-size="8">dashboard, embedded</text>
+  <line x1="464" y1="380" x2="464" y2="406" stroke="#3d3c39" marker-end="url(#a1)"/>
+  <line x1="544" y1="436" x2="564" y2="436" stroke="#3d3c39" marker-end="url(#a1)"/>
+  <line x1="638" y1="406" x2="638" y2="382" stroke="#3d3c39" marker-end="url(#a1)"/>
+</svg>
+<figcaption><b>Figure 1.</b> System architecture. Arrows inside the orchestrator carry the typed contracts of §5
+(IncidentContext → rendered context → ProposedAction → Verdict → ExecutionResult). The only path from a proposal to the
+environment runs through the verifier policy and the executor. Dashed boxes are eval-only or optional.</figcaption>
+</figure>
+
+<h2 id="s4-2"><span class="num">4.2</span>Component inventory</h2>
+<table>
+  <caption><b>Table 3.</b> Components, their responsibilities and their locations in the repository.</caption>
+  <tr><th style="width:21%">Component</th><th>Responsibility</th><th style="width:27%">Location</th></tr>
+  <tr><td>Schemas</td><td>Typed contracts for every cross-module payload</td><td><code>sentinel/schemas/</code></td></tr>
+  <tr><td>Environment adapter</td><td>The only code that touches the benchmark: incidents, apply, oracle check, labels</td><td><code>sentinel/env/</code></td></tr>
+  <tr><td>Context &amp; tools</td><td>Budgeted, redacted rendering of telemetry; the agent's four tools</td><td><code>sentinel/context/</code>, <code>agent/tools.py</code></td></tr>
+  <tr><td>Diagnosis agents</td><td>ReAct LLM agent and seeded simulated planner behind one interface</td><td><code>sentinel/agent/</code></td></tr>
+  <tr><td>Verifiers</td><td>Envelope, LLM judge, learned model, features, combination policy</td><td><code>sentinel/verifier/</code></td></tr>
+  <tr><td>Executor</td><td>The only path to <code>apply_action</code>; enforces the safety rules</td><td><code>sentinel/executor/</code></td></tr>
+  <tr><td>Orchestrator</td><td>The propose–verify–act loop; wiring from config</td><td><code>sentinel/orchestrator/</code></td></tr>
+  <tr><td>Labeling</td><td>Label taxonomy, provenance, oracle labeler, hard cases, review CLI</td><td><code>sentinel/labeling/</code></td></tr>
+  <tr><td>Run store</td><td>DuckDB persistence of runs, steps and human decisions</td><td><code>sentinel/store/</code></td></tr>
+  <tr><td>Evaluation</td><td>Metrics, grid runner, Pareto sweep, ablation plan, report, figures</td><td><code>sentinel/eval/</code></td></tr>
+  <tr><td>Gateway</td><td>LLM clients and cost ledger, console API with live streaming, <code>/chat</code></td><td><code>sentinel/gateway/</code></td></tr>
+  <tr><td>Observability</td><td>Prometheus counters and histograms for the live loop</td><td><code>sentinel/observability/</code></td></tr>
+  <tr><td>Triage console</td><td>React UI: queue, triage, live loop, results, embedded Grafana</td><td><code>frontend/</code></td></tr>
+  <tr><td>Data pipeline</td><td>Selective ITBench fetch and conversion into fixtures</td><td><code>scripts/*itbench*.py</code></td></tr>
+</table>
+<p>The Python source is about {{loc_src}} lines, the tests about {{loc_tests}} lines ({{n_tests}} test
+cases), and the console about {{loc_frontend}} lines of TypeScript (excluding generated types).</p>
+
+<!-- =============================================================================================== -->
+<h1 id="s5"><span class="num">5</span>Data Contracts</h1>
+<p>Every module communicates through the Pydantic v2 models below. Two of them were extended during
+the project:</p>
+<ul>
+  <li><code>Verdict.layers</code> lets the console show every verification layer's decision.</li>
+  <li><code>StepRecord.ground_truth_label</code> lets the metrics be computed. It is attached
+  <i>after</i> the verdict and is never visible to the agent or any verifier.</li>
+</ul>
+
+<table>
+  <caption><b>Table 4.</b> Core contracts (<code>src/sentinel/schemas</code>).</caption>
+  <tr><th style="width:18%">Model</th><th>Key fields</th><th style="width:28%">Produced by → consumed by</th></tr>
+  <tr><td><code>Telemetry</code></td><td>logs, metrics (name → series), traces, topology, alerts</td><td>env adapter → context builder, features</td></tr>
+  <tr><td><code>IncidentContext</code></td><td>incident_id, source, fault_family (<i>eval-only</i>), telemetry, budget_tokens</td><td>env adapter → agent, verifiers</td></tr>
+  <tr><td><code>ProposedAction</code></td><td>action_type, target, params, rationale, predicted_effect</td><td>agent → verifier → executor</td></tr>
+  <tr><td><code>Verdict</code></td><td>decision ∈ {allow, block, revise}, risk_score ∈ [0,1], reasons[], verifier, layers[]</td><td>policy → orchestrator → executor, console</td></tr>
+  <tr><td><code>LayerVerdict</code></td><td>verifier ∈ {envelope, llm_judge, learned}, decision (incl. <i>skipped</i>), risk_score, reasons</td><td>policy → console VerdictCard, metrics</td></tr>
+  <tr><td><code>ExecutionResult</code></td><td>executed, dry_run, resolved, side_effects, error</td><td>env adapter → orchestrator</td></tr>
+  <tr><td><code>StepRecord</code></td><td>step_idx, proposed, verdict, result, tokens, latency_ms, ground_truth_label</td><td>orchestrator → store, SSE stream</td></tr>
+  <tr><td><code>RunRecord</code></td><td>incident_id, seed, config_hash, steps[], final_resolved, unsafe_action_reached_exec, mttm_ms, total_tokens, total_cost_usd</td><td>orchestrator → store, metrics, console</td></tr>
+</table>
+
+<div class="callout">
+  <div class="callout-title">One source of truth for types</div>
+  <p>The console's <code>types.ts</code> is generated from these models by <code>make types</code>
+  (Pydantic JSON Schema → TypeScript) and is never edited by hand. When a schema changes, the
+  frontend type-check fails until the types are regenerated, so the API and the UI cannot drift
+  apart unnoticed.</p>
+</div>
+
+<!-- =============================================================================================== -->
+<h1 id="s6"><span class="num">6</span>Component Design</h1>
+
+<h2 id="s6-1"><span class="num">6.1</span>Environment adapter</h2>
+<p><code>EnvAdapter</code> is the only interface that touches a benchmark. It has six methods:</p>
+<ul>
+  <li><code>list_incidents</code> and <code>get_incident</code>;</li>
+  <li><code>apply_action(action, dry_run)</code>;</li>
+  <li><code>evaluate</code>, the oracle's check of whether the incident is resolved;</li>
+  <li><code>ground_truth_action_safe</code>, a label source for evaluation;</li>
+  <li><code>reset</code>.</li>
+</ul>
+<p><code>OfflineEnvAdapter</code> implements it over JSON fixtures. Applying an action outside a dry
+run sets the incident's resolved flag only if the action matches a fixture entry with
+<code>resolves: true</code>. Matching is exact first. A looser match then requires every
+<i>shared</i> parameter to agree, ignoring only volatile identifiers (<code>pod_name</code>,
+<code>revision</code>, <code>cache_key</code>). This rule closed a defect: under the earlier
+(type, target) match, disabling an <i>unrelated</i> flag on <code>flagd-config</code>, or scaling a
+service to zero replicas, inherited the correct action's <code>resolves: true</code> (§11.2).</p>
+<p>The AIOpsLab and ITBench cluster adapters implement the same interface as stubs and import their
+client libraries lazily. The rest of the system never knows which adapter is in use.</p>
+
+<h2 id="s6-2"><span class="num">6.2</span>Context builder and telemetry tools</h2>
+<p><code>build_context</code> renders an incident within its token budget, in this order:</p>
+<ol>
+  <li>alerts and topology, kept whole;</li>
+  <li>metrics, 20% of the remaining budget, most-changing series first and downsampled;</li>
+  <li>traces, 15%, error spans first;</li>
+  <li>logs, 65%, error-like lines first and returned in time order.</li>
+</ol>
+<p>The output is then redacted: e-mail addresses, IP addresses and credential-like values are
+masked. Two rules prevent ground truth leaking to the agent:</p>
+<ul>
+  <li><code>fault_family</code> is never rendered.</li>
+  <li>The incident identifier is not rendered either, because the hand-built identifiers name their
+  fault (e.g. <code>pod-crashloop</code>). A regression test caught this leak.</li>
+</ul>
+<p>A <code>signals</code> set selects which sources are visible, which supports a telemetry
+ablation. The agent's four tools (<code>get_logs</code>, <code>get_metrics</code>,
+<code>get_traces</code>, <code>get_topology</code>) dispatch through one function. A tool whose
+signal is ablated is genuinely unavailable, not merely left unmentioned.</p>
+
+<h2 id="s6-3"><span class="num">6.3</span>Diagnosis agents</h2>
+<p><b>ReAct agent.</b> The ReAct loop is written in the repository, with no agent framework. Each
+model turn is either a tool call (<code>Action</code> plus a JSON <code>Action Input</code>) or a
+<code>Final Answer</code> containing a <code>ProposedAction</code>. Tool results come back as
+<code>Observation</code> turns. Malformed turns are answered with an observation that explains the
+problem; they are never silently repaired. If the agent exhausts its tool budget without a valid
+proposal, it raises <code>AgentExhausted</code> and the orchestrator escalates. Verifier feedback
+continues the same conversation. The prompt lists the allow-listed action vocabulary but not the
+verifier's rules.</p>
+<p><b>Simulated planner.</b> The LLM-free <code>SimulatedDiagnosisAgent</code> is a <i>controlled
+stimulus for evaluating the verifier</i>, not a diagnosis method. Seeded by (seed, incident), it
+draws each proposal from the incident's candidate actions according to a label mix:</p>
+<ul>
+  <li>default: 45% correct, 25% ineffective, 20% destructive, 10% out-of-envelope;</li>
+  <li>after verifier feedback, the weight on correct actions grows by a factor of 1.5.</li>
+</ul>
+<p>The planner reads labels in order to <i>choose</i>, but every proposal it emits carries the same
+label-independent rationale template, so no verifier can recover the label from its wording (this
+is tested).</p>
+
+<h2 id="s6-4"><span class="num">6.4</span>The verification layers</h2>
+<figure>
+<svg viewBox="0 0 720 262" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif" font-size="9">
+  <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3d3c39"/></marker></defs>
+  <rect x="8" y="96" width="100" height="48" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="58" y="116" text-anchor="middle" font-weight="700">ProposedAction</text>
+  <text x="58" y="131" text-anchor="middle" font-size="8" fill="#6b6a65">from the agent</text>
+  <rect x="134" y="62" width="160" height="116" rx="5" fill="#eef4fc" stroke="#2a78d6"/>
+  <text x="214" y="80" text-anchor="middle" font-weight="700">1 · Envelope (deterministic)</text>
+  <text x="146" y="99">• action_type allow-listed</text>
+  <text x="146" y="114">• typed params · min/max · enum</text>
+  <text x="146" y="129">• no unknown params</text>
+  <text x="146" y="144">• namespace not forbidden</text>
+  <text x="146" y="159">• blast radius ≤ policy cap</text>
+  <rect x="134" y="206" width="160" height="36" rx="5" fill="#fff" stroke="#d03b3b"/>
+  <text x="214" y="228" text-anchor="middle" font-weight="700" fill="#d03b3b">BLOCK · risk 1.0 · reasons</text>
+  <line x1="108" y1="120" x2="132" y2="120" stroke="#3d3c39" marker-end="url(#a2)"/>
+  <line x1="214" y1="178" x2="214" y2="204" stroke="#d03b3b" marker-end="url(#a2)"/>
+  <text x="220" y="195" font-size="8" fill="#d03b3b">any violation</text>
+  <rect x="330" y="30" width="176" height="186" rx="6" fill="#fff" stroke="#c3c2b7" stroke-dasharray="4 3"/>
+  <text x="418" y="46" text-anchor="middle" font-size="8" fill="#6b6a65">secondary layers (by variant)</text>
+  <rect x="342" y="56" width="152" height="68" rx="4" fill="#ecf8f3" stroke="#1baf7a"/>
+  <text x="418" y="74" text-anchor="middle" font-weight="700">2a · LLM judge</text>
+  <text x="418" y="89" text-anchor="middle">own prompt, client, ledger</text>
+  <text x="418" y="103" text-anchor="middle">JSON {decision, risk, reasons}</text>
+  <text x="418" y="117" text-anchor="middle" fill="#b24f22">unparseable/unavailable → block</text>
+  <rect x="342" y="134" width="152" height="68" rx="4" fill="#fdf0e9" stroke="#eb6834"/>
+  <text x="418" y="152" text-anchor="middle" font-weight="700">2b · Learned verifier</text>
+  <text x="418" y="167" text-anchor="middle">XGBoost + Platt calibration</text>
+  <text x="418" y="181" text-anchor="middle">cross-fitted by incident</text>
+  <text x="418" y="195" text-anchor="middle">P(destructive) + top reasons</text>
+  <line x1="294" y1="120" x2="328" y2="120" stroke="#3d3c39" marker-end="url(#a2)"/>
+  <text x="300" y="112" font-size="8">pass</text>
+  <rect x="532" y="86" width="84" height="68" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="574" y="106" text-anchor="middle" font-weight="700">score =</text>
+  <text x="574" y="121" text-anchor="middle">max secondary risk</text>
+  <text x="574" y="136" text-anchor="middle" font-size="8" fill="#6b6a65">(else envelope</text>
+  <text x="574" y="147" text-anchor="middle" font-size="8" fill="#6b6a65">blast-radius risk)</text>
+  <line x1="506" y1="120" x2="530" y2="120" stroke="#3d3c39" marker-end="url(#a2)"/>
+  <rect x="638" y="58" width="76" height="38" rx="5" fill="#fff" stroke="#0ca30c"/>
+  <text x="676" y="75" text-anchor="middle" font-weight="700" fill="#006300">ALLOW</text>
+  <text x="676" y="88" text-anchor="middle" font-size="8">score &lt; τ</text>
+  <rect x="638" y="144" width="76" height="48" rx="5" fill="#fff" stroke="#d03b3b"/>
+  <text x="676" y="162" text-anchor="middle" font-weight="700" fill="#d03b3b">BLOCK</text>
+  <text x="676" y="174" text-anchor="middle" font-size="8">(REVISE if only</text>
+  <text x="676" y="185" text-anchor="middle" font-size="8">revise over τ)</text>
+  <path d="M616,108 H626 V77 H636" fill="none" stroke="#3d3c39" marker-end="url(#a2)"/>
+  <path d="M616,132 H626 V168 H636" fill="none" stroke="#3d3c39" marker-end="url(#a2)"/>
+  <text x="330" y="252" font-size="8.5" fill="#3d3c39">Every Verdict lists all three layers in Verdict.layers; inactive layers are recorded as "skipped".</text>
+</svg>
+<figcaption><b>Figure 2.</b> The verification pipeline implemented by <code>CombinedPolicy</code>. The envelope can only
+block; risk is scored only by the secondary layers. One threshold τ decides the outcome, and sweeping τ traces the
+Pareto curve.</figcaption>
+</figure>
+
+<h3 id="s6-4-1"><span class="num">6.4.1</span>Envelope (hard gate)</h3>
+<p>The envelope is driven entirely by <code>config/action_envelope.yaml</code> (Tab. 5). It blocks:</p>
+<ul>
+  <li>any action type that is not allow-listed;</li>
+  <li>parameters that are missing, mistyped, out of range, outside an enumeration, or not declared at all;</li>
+  <li>actions on a forbidden namespace (<code>kube-system</code>);</li>
+  <li>actions whose blast radius exceeds the policy cap (<i>medium</i>).</li>
+</ul>
+<p>An allowed action is given an approximate risk from its blast radius (low 0.10, medium 0.35), so
+that the envelope-only baseline still responds to τ.</p>
+<p>Some protections are structural. The <code>replicas</code> floor of 1 makes every scale-to-zero
+proposal impossible. The <code>kind</code> enumeration on <code>remove_fault_injection</code> means
+that action can delete a chaos experiment or a NetworkPolicy, but never a Deployment, PVC or
+Namespace.</p>
+{{envelope_table}}
+
+<h3 id="s6-4-2"><span class="num">6.4.2</span>LLM judge (v1)</h3>
+<p>The judge receives a compacted rendering of the incident plus the proposal as JSON. It must
+answer with <code>{decision, risk_score, reasons}</code>, where:</p>
+<ul>
+  <li>the reasons are human-readable, one per entry, because they appear in the console;</li>
+  <li>the risk score is clamped to [0, 1].</li>
+</ul>
+<p>The judge <b>fails closed</b>. If the model is unreachable, or its output cannot be parsed into a
+verdict, the result is <code>block</code> with risk 1.0 and the cause stated as the reason. An
+unreadable judge never lets an action through. The judge has its own system prompt, its own client
+handle and its own usage ledger, and it never sees the agent's conversation.</p>
+
+<h3 id="s6-4-3"><span class="num">6.4.3</span>Learned verifier (v2)</h3>
+<p>The learned verifier estimates P(destructive) with gradient-boosted trees: 150 trees of depth 3,
+with Platt calibration. Its features (Tab. 6) come <i>only</i> from what a verifier may
+legitimately observe:</p>
+<ul>
+  <li>the incident's telemetry and topology;</li>
+  <li>the proposal itself;</li>
+  <li>the envelope's static description of the action type.</li>
+</ul>
+<p>It never uses the oracle, <code>fault_family</code> or the incident identifier. A test checks
+that features are identical when the identifier and the fault family are blanked out. The central
+signal is <i>linkage</i>: whether anything in the telemetry points at the action's target.</p>
+<table>
+  <caption><b>Table 6.</b> Learned-verifier features (<code>verifier/features.py</code>).</caption>
+  <tr><th style="width:16%">Group</th><th>Features</th></tr>
+  <tr><td>Action</td><td>action-type one-hot (10), scope one-hot, blast radius, reversibility, replicas (and presence), <code>enabled</code> flag, parameter count</td></tr>
+  <tr><td>Linkage</td><td>target named by a firing alert; target in topology; log mentions, error-log mentions and log share; target in trace spans; topology in-degree and out-degree</td></tr>
+  <tr><td>Context</td><td>number of alerts, maximum alert severity, number of anomalous metric series, topology size, log volume</td></tr>
+  <tr><td>Text</td><td>TF-IDF (40 terms, min_df 3) over the proposal's rationale and predicted effect, with the vocabulary fit on training folds only</td></tr>
+  <tr><td>Omitted</td><td>agent confidence (token log-probabilities or self-report), which the current agents do not provide; it was omitted rather than invented</td></tr>
+</table>
+<p>The training protocol is described in §8.4. At run time, each incident is scored by the
+cross-fitted model that held it out during training; incidents never seen in training use a model
+fit on all of them. The verdict's reasons are the model's own top per-feature contributions,
+rendered as text, for example <i>"target is not named by any firing alert"</i>.</p>
+
+<h3 id="s6-4-4"><span class="num">6.4.4</span>Combination policy and variants</h3>
+<p><code>CombinedPolicy</code> implements <i>final = envelope_pass ∧ (score &lt; τ)</i>:</p>
+<ul>
+  <li>If the envelope blocks, the result is block, and the secondary layers are recorded as
+  <i>skipped (envelope already blocked)</i>.</li>
+  <li>Otherwise the score is the maximum risk over the active secondary layers, the most cautious
+  reading.</li>
+  <li>At or above τ, the decision is <code>revise</code> only if some layer over τ asked for revision
+  and none asked to block; otherwise it is <code>block</code>.</li>
+</ul>
+<p>The five variants in Tab. 7 are built from the same pieces.</p>
+<table>
+  <caption><b>Table 7.</b> Verification variants (<code>verifier/policy.py</code>: <code>build_policy</code>).</caption>
+  <tr><th style="width:16%">Variant</th><th>Layers</th><th>Role in evaluation</th></tr>
+  <tr><td><code>none</code></td><td>—</td><td>Ungated agent: the reference for what verification prevents</td></tr>
+  <tr><td><code>envelope</code></td><td>envelope</td><td>Deterministic gate only</td></tr>
+  <tr><td><code>llm_judge</code></td><td>envelope + judge</td><td>Verifier v1 (needs API credentials)</td></tr>
+  <tr><td><code>learned</code></td><td>envelope + learned</td><td>Verifier v2; the main offline system</td></tr>
+  <tr><td><code>combined</code></td><td>envelope + judge + learned</td><td>All layers; score = the more cautious of the two</td></tr>
+</table>
+
+<h2 id="s6-5"><span class="num">6.5</span>Executor</h2>
+<p>The executor is the only caller of <code>apply_action</code>. A dry run needs no verdict, because
+it changes nothing. A real apply is refused unless <i>both</i> conditions hold:</p>
+<ul>
+  <li>the executor was constructed with <code>auto_execute=true</code>;</li>
+  <li>the caller passes the policy's verdict, and that verdict is <code>allow</code>.</li>
+</ul>
+<p>Environment failures are recorded as results rather than raised, so a run always produces a
+record. Rollback deliberately only <i>plans</i> an inverse action, and only when the inverse is fully
+determined by the original action (e.g. flipping a feature flag back). The inverse is an ordinary
+proposal that must pass the verifier, so rollback cannot become a way around the safety rules.</p>
+
+<h2 id="s6-6"><span class="num">6.6</span>Orchestrator loop</h2>
+<figure>
+<svg viewBox="0 0 760 312" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif" font-size="9">
+  <defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3d3c39"/></marker></defs>
+  <rect x="8" y="26" width="108" height="46" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="62" y="45" text-anchor="middle" font-weight="700">reset env</text>
+  <text x="62" y="60" text-anchor="middle">load incident</text>
+  <rect x="140" y="26" width="132" height="46" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="206" y="45" text-anchor="middle" font-weight="700">agent proposes</text>
+  <text x="206" y="60" text-anchor="middle" font-size="8">propose / incorporate_feedback</text>
+  <rect x="296" y="26" width="110" height="46" rx="5" fill="#eef4fc" stroke="#2a78d6"/>
+  <text x="351" y="45" text-anchor="middle" font-weight="700">policy verifies</text>
+  <text x="351" y="60" text-anchor="middle" font-size="8">Verdict (all layers)</text>
+  <rect x="430" y="26" width="118" height="46" rx="5" fill="#fff" stroke="#6b6a65" stroke-dasharray="3 3"/>
+  <text x="489" y="45" text-anchor="middle" font-weight="700" fill="#3d3c39">label attached</text>
+  <text x="489" y="60" text-anchor="middle" font-size="8" fill="#6b6a65">eval-only, after verdict</text>
+  <polygon points="640,22 700,49 640,76 580,49" fill="#fff" stroke="#3d3c39"/>
+  <text x="640" y="53" text-anchor="middle" font-weight="700">decision</text>
+  <line x1="116" y1="49" x2="138" y2="49" stroke="#3d3c39" marker-end="url(#a3)"/>
+  <line x1="272" y1="49" x2="294" y2="49" stroke="#3d3c39" marker-end="url(#a3)"/>
+  <line x1="406" y1="49" x2="428" y2="49" stroke="#3d3c39" marker-end="url(#a3)"/>
+  <line x1="548" y1="49" x2="578" y2="49" stroke="#3d3c39" marker-end="url(#a3)"/>
+  <!-- lanes -->
+  <path d="M600,67 L470,104" fill="none" stroke="#3d3c39" marker-end="url(#a3)"/>
+  <text x="540" y="96" font-size="8" fill="#006300">allow</text>
+  <line x1="640" y1="76" x2="640" y2="104" stroke="#3d3c39" marker-end="url(#a3)"/>
+  <text x="646" y="94" font-size="8" fill="#9a6a00">revise</text>
+  <path d="M680,67 L716,104" fill="none" stroke="#3d3c39" marker-end="url(#a3)"/>
+  <text x="702" y="80" font-size="8" fill="#d03b3b">block</text>
+  <rect x="400" y="106" width="140" height="40" rx="5" fill="#fff" stroke="#0ca30c"/>
+  <text x="470" y="123" text-anchor="middle" font-weight="700">Executor.run</text>
+  <text x="470" y="137" text-anchor="middle" font-size="8">(action, verdict, dry_run)</text>
+  <rect x="400" y="168" width="140" height="34" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="470" y="189" text-anchor="middle">resolved? · dry run?</text>
+  <rect x="400" y="226" width="140" height="32" rx="5" fill="#fff" stroke="#0ca30c" stroke-width="1.5"/>
+  <text x="470" y="246" text-anchor="middle" font-weight="700" fill="#006300">END · resolved / plan</text>
+  <line x1="470" y1="146" x2="470" y2="166" stroke="#3d3c39" marker-end="url(#a3)"/>
+  <line x1="470" y1="202" x2="470" y2="224" stroke="#3d3c39" marker-end="url(#a3)"/>
+  <text x="476" y="217" font-size="8">yes</text>
+  <rect x="580" y="106" width="104" height="40" rx="5" fill="#fff" stroke="#e0a300"/>
+  <text x="632" y="123" text-anchor="middle" font-weight="700">feedback =</text>
+  <text x="632" y="137" text-anchor="middle" font-size="8">verdict reasons</text>
+  <rect x="694" y="106" width="62" height="40" rx="5" fill="#fff" stroke="#d03b3b"/>
+  <text x="725" y="123" text-anchor="middle" font-weight="700">on_block</text>
+  <text x="725" y="137" text-anchor="middle" font-size="8">config</text>
+  <rect x="696" y="226" width="60" height="36" rx="5" fill="#fff" stroke="#7d5fd6" stroke-width="1.5"/>
+  <text x="726" y="241" text-anchor="middle" font-weight="700" fill="#5b43b8">END</text>
+  <text x="726" y="254" text-anchor="middle" font-size="8" fill="#5b43b8">escalated</text>
+  <line x1="726" y1="146" x2="726" y2="224" stroke="#3d3c39" marker-end="url(#a3)"/>
+  <text x="731" y="190" font-size="8">escalate</text>
+  <path d="M696,136 H689 V284 H636" fill="none" stroke="#eb6834" stroke-dasharray="4 3" marker-end="url(#a3)"/>
+  <text x="664" y="206" text-anchor="middle" font-size="8" fill="#b24f22">retry</text>
+  <!-- return bus -->
+  <path d="M632,146 V284 H206 V74" fill="none" stroke="#eb6834" stroke-dasharray="4 3" marker-end="url(#a3)"/>
+  <path d="M400,185 H330 V284" fill="none" stroke="#eb6834" stroke-dasharray="4 3"/>
+  <text x="324" y="208" text-anchor="end" font-size="8" fill="#b24f22">no: "still not resolved"</text>
+  <text x="214" y="302" font-size="8" fill="#b24f22">↺ next step · at most max_steps (6) · agent out of proposals → END escalated</text>
+</svg>
+<figcaption><b>Figure 3.</b> One run of the orchestrator loop. Only an <code>allow</code> reaches the executor, and the
+verdict is passed with it. Revise decisions, retried blocks and non-resolving executions return to the agent as feedback.
+The ground-truth label is attached after the decision and never flows back into the loop.</figcaption>
+</figure>
+<p>Every run starts with <code>env.reset</code>, so no state leaks between runs (a test checks this).
+A dry-run session ends as soon as a vetted plan exists. A real run ends when the oracle reports the
+incident resolved. <code>unsafe_action_reached_exec</code>, the key safety field, is set only if an
+action labeled destructive was executed outside a dry run. <code>on_block</code> controls what a
+block means:</p>
+<ul>
+  <li><code>escalate</code> (the blueprint default): page a human and end the run;</li>
+  <li><code>retry</code>: feed the block reasons back to the agent.</li>
+</ul>
+<p>§9.3 shows that this policy choice matters as much as the verifier itself. An <code>on_step</code>
+callback lets the gateway stream each step as it is produced.</p>
+
+<h2 id="s6-7"><span class="num">6.7</span>Run store</h2>
+<p>DuckDB holds a <code>runs</code> table and a <code>steps</code> table:</p>
+<ul>
+  <li>one <code>runs</code> row per run: experiment, cell, variant, τ, seed, agent kind, config hash,
+  outcome fields and the full <code>RunRecord</code> JSON, for lossless round-trips;</li>
+  <li>one <code>steps</code> row per step: action, decision, each layer's decision, the label,
+  executed and resolved flags, tokens and latency, for SQL analysis.</li>
+</ul>
+<p>A <code>human_decisions</code> table records console approvals and rejections for audit; it never
+triggers execution. Grid writes are batched in one transaction and are idempotent per
+<code>run_id</code>, so re-running an experiment replaces its rows instead of duplicating them.</p>
+
+<h2 id="s6-8"><span class="num">6.8</span>Gateway and console API</h2>
+<p>The FastAPI gateway serves four things:</p>
+<ul>
+  <li><code>/chat</code>, an LLM proxy with a token and cost ledger and a disk cache;</li>
+  <li><code>/usage</code>;</li>
+  <li><code>/metrics</code>;</li>
+  <li>the console API under <code>/api</code>.</li>
+</ul>
+<p><code>POST /api/runs</code> starts the real orchestrator in a background thread, with a fresh
+environment instance per run so that concurrent runs cannot interfere.
+<code>GET /api/runs/{id}/stream</code> is a Server-Sent Events stream. It emits one
+<code>step</code> event per <code>StepRecord</code> as the loop produces it, then a
+<code>final</code> event with the <code>RunRecord</code>, and a reconnecting client replays the whole
+event log. The <code>/api/experiments/*</code> endpoints rebuild their tables from the same DuckDB
+rows and the same report code as this document, so the console and the report cannot disagree.</p>
+
+<h2 id="s6-9"><span class="num">6.9</span>Observability and deployment</h2>
+<p>Prometheus counters and histograms instrument the live loop:</p>
+<ul>
+  <li>verdicts by decision and variant, and per-layer verdicts;</li>
+  <li>executions by mode;</li>
+  <li>destructive proposals that were blocked versus executed;</li>
+  <li>runs by outcome, step latency, and LLM tokens and cost.</li>
+</ul>
+<p>A provisioned Grafana dashboard charts them using the console's decision colors. These are
+operational telemetry only; evaluation results live in DuckDB. Fig. 4 shows the containerised
+deployment.</p>
+<figure>
+<svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif" font-size="9">
+  <defs><marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3d3c39"/></marker></defs>
+  <rect x="8" y="80" width="76" height="40" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="46" y="104" text-anchor="middle" font-weight="700">Browser</text>
+  <rect x="104" y="10" width="608" height="182" rx="8" fill="#f4f4f1" stroke="#c3c2b7"/>
+  <text x="116" y="28" font-weight="700">docker compose (make demo)</text>
+  <rect x="124" y="70" width="140" height="62" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="194" y="89" text-anchor="middle" font-weight="700">console · nginx :4173</text>
+  <text x="194" y="104" text-anchor="middle" font-size="8">static build, live mode</text>
+  <text x="194" y="117" text-anchor="middle" font-size="8">/api proxy, SSE unbuffered</text>
+  <rect x="298" y="70" width="160" height="62" rx="5" fill="#fff" stroke="#2a78d6"/>
+  <text x="378" y="89" text-anchor="middle" font-weight="700">gateway · FastAPI :8080</text>
+  <text x="378" y="104" text-anchor="middle" font-size="8">orchestrator threads · /api · /chat</text>
+  <text x="378" y="117" text-anchor="middle" font-size="8">learned model trained at build</text>
+  <rect x="298" y="150" width="160" height="32" rx="5" fill="#fff" stroke="#6b6a65" stroke-dasharray="3 3"/>
+  <text x="378" y="170" text-anchor="middle" font-size="8.5">volume: DuckDB run store</text>
+  <rect x="492" y="44" width="100" height="44" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="542" y="63" text-anchor="middle" font-weight="700">Prometheus :9090</text>
+  <text x="542" y="77" text-anchor="middle" font-size="8">scrapes /metrics/</text>
+  <rect x="604" y="44" width="100" height="44" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="654" y="63" text-anchor="middle" font-weight="700">Grafana :3000</text>
+  <text x="654" y="77" text-anchor="middle" font-size="8">provisioned dashboard</text>
+  <line x1="84" y1="100" x2="122" y2="100" stroke="#3d3c39" marker-end="url(#a4)"/>
+  <line x1="264" y1="100" x2="296" y2="100" stroke="#3d3c39" marker-end="url(#a4)"/>
+  <line x1="378" y1="132" x2="378" y2="148" stroke="#3d3c39" marker-end="url(#a4)"/>
+  <path d="M492,66 H476 V84 H460" fill="none" stroke="#3d3c39" marker-end="url(#a4)"/>
+  <line x1="604" y1="66" x2="594" y2="66" stroke="#3d3c39" marker-end="url(#a4)"/>
+  <path d="M654,88 V150 H194 V134" fill="none" stroke="#3d3c39" stroke-dasharray="3 3" marker-end="url(#a4)"/>
+  <text x="470" y="146" font-size="8">Grafana embedded in the console (iframe)</text>
+</svg>
+<figcaption><b>Figure 4.</b> Containerised demonstration stack. <code>make demo-local</code> runs the gateway and the
+console without Docker and is the configuration verified by the browser rehearsal (§11).</figcaption>
+</figure>
+
+<h2 id="s6-10"><span class="num">6.10</span>Triage console</h2>
+<p>The console is a React and TypeScript application. Server state lives in TanStack Query and UI
+state in Zustand; the live loop is an <code>EventSource</code>, never polling. It has four
+screens:</p>
+<ul>
+  <li><b>Queue</b>: the incident list.</li>
+  <li><b>Triage</b>: telemetry, topology graph, run controls (verifier, τ, dry run) and the
+  streaming loop timeline.</li>
+  <li><b>Results</b>: the Pareto chart with a draggable τ marker synchronised with the run controls,
+  the prevention partition, metrics and ablations.</li>
+  <li><b>Observability</b>: embedded Grafana.</li>
+</ul>
+<p>The <b>VerdictCard</b> always shows all three layers and greys out inactive ones, because the
+layered view is the project's contribution. Two conventions hold throughout:</p>
+<ul>
+  <li>Color means decision: allow, block, revise and escalate each have one reserved hue.</li>
+  <li>Chart series use a separate categorical palette, validated for color-vision deficiency against
+  the console's actual surface.</li>
+</ul>
+<p>In mock mode, the console runs fully against an in-browser mock server with a measured snapshot
+of the evaluation, so it can be demonstrated with no backend.</p>
+<figure>
+<img class="shot" src="{{img_shot_thesis}}" style="width:100%">
+<figcaption><b>Figure 5.</b> The console in live mode on <code>itbench-sre-scenario-12</code>. The agent proposes
+<code>cordon_node</code>; the envelope <i>allows</i> it (allow-listed, valid parameters, risk 0.35); the learned layer
+blocks it; and the timeline marks the step <i>blocked</i>. Ungated, the same proposal executes (§11.3).</figcaption>
+</figure>
+
+<!-- =============================================================================================== -->
+<h1 id="s7"><span class="num">7</span>Dataset and Ground Truth</h1>
+
+<h2 id="s7-1"><span class="num">7.1</span>Incidents</h2>
+<p>The offline environment holds {{n_incidents}} incidents across {{n_families}} fault families
+(Tab. 8). Each is a JSON fixture with five parts:</p>
+<ul>
+  <li>telemetry: logs, metrics, traces, topology and alerts;</li>
+  <li>an oracle: candidate actions labeled under the taxonomy of §7.3;</li>
+  <li>the resolving action;</li>
+  <li>a provenance tag on every label;</li>
+  <li>for converted incidents, an eval-only block holding ITBench's root cause and causal chain.</li>
+</ul>
+<p>Six incidents are hand-built (crash loop, bad rollout, memory leak, connection-pool exhaustion,
+disk pressure, misconfiguration). The other 35 are converted from <b>ITBench-Lite</b> [1], IBM
+Research's public SRE snapshots (Apache-2.0), and are cited in the repository's third-party
+notices.</p>
+{{family_table}}
+
+<h2 id="s7-2"><span class="num">7.2</span>ITBench conversion pipeline</h2>
+<figure>
+<svg viewBox="0 0 760 212" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif" font-size="9">
+  <defs><marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3d3c39"/></marker></defs>
+  <rect x="6" y="60" width="104" height="80" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="58" y="82" text-anchor="middle" font-weight="700">ITBench-Lite</text>
+  <text x="58" y="98" text-anchor="middle" font-size="8">35 SRE scenarios</text>
+  <text x="58" y="112" text-anchor="middle" font-size="8">~31 GB raw</text>
+  <text x="58" y="126" text-anchor="middle" font-size="8" fill="#6b6a65">Hugging Face</text>
+  <rect x="128" y="60" width="110" height="80" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="183" y="82" text-anchor="middle" font-weight="700">fetch_itbench.py</text>
+  <text x="183" y="98" text-anchor="middle" font-size="8">selective, resumable</text>
+  <text x="183" y="112" text-anchor="middle" font-size="8">~13 GB actually needed</text>
+  <text x="183" y="126" text-anchor="middle" font-size="8" fill="#6b6a65">data/ (git-ignored)</text>
+  <rect x="256" y="14" width="266" height="184" rx="6" fill="#f4f4f1" stroke="#c3c2b7"/>
+  <text x="389" y="32" text-anchor="middle" font-weight="700">convert_itbench.py + itbench_action_mapping.yaml</text>
+  <rect x="266" y="42" width="246" height="34" rx="4" fill="#fff" stroke="#3d3c39"/>
+  <text x="389" y="56" text-anchor="middle" font-size="8.5">ground truth → topology &amp; alerts</text>
+  <text x="389" y="69" text-anchor="middle" font-size="8" fill="#d03b3b">root-cause flags and causal prose stripped</text>
+  <rect x="266" y="82" width="246" height="34" rx="4" fill="#fff" stroke="#3d3c39"/>
+  <text x="389" y="96" text-anchor="middle" font-size="8.5">recommended actions → mapping table</text>
+  <text x="389" y="109" text-anchor="middle" font-size="8">→ correct actions (itbench_derived) | unmapped</text>
+  <rect x="266" y="122" width="246" height="34" rx="4" fill="#fff" stroke="#3d3c39"/>
+  <text x="389" y="136" text-anchor="middle" font-size="8.5">logs · traces · events · span metrics</text>
+  <text x="389" y="149" text-anchor="middle" font-size="8">alert-anchored window, ranked, deduplicated, capped</text>
+  <rect x="266" y="162" width="246" height="30" rx="4" fill="#fff" stroke="#3d3c39"/>
+  <text x="389" y="174" text-anchor="middle" font-size="8.5">synthesizer → destructive / ineffective / out-of-envelope</text>
+  <text x="389" y="186" text-anchor="middle" font-size="8">(converter_synthesized, needs_review)</text>
+  <rect x="540" y="60" width="100" height="80" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="590" y="82" text-anchor="middle" font-weight="700">fixture JSON</text>
+  <text x="590" y="98" text-anchor="middle" font-size="8">21–42 KB each</text>
+  <text x="590" y="112" text-anchor="middle" font-size="8">provenance per label</text>
+  <text x="590" y="126" text-anchor="middle" font-size="8" fill="#6b6a65">committed</text>
+  <rect x="658" y="60" width="96" height="80" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="706" y="82" text-anchor="middle" font-weight="700">review CLI</text>
+  <text x="706" y="98" text-anchor="middle" font-size="8">accept / relabel</text>
+  <text x="706" y="112" text-anchor="middle" font-size="8">→ human_reviewed</text>
+  <text x="706" y="126" text-anchor="middle" font-size="8" fill="#6b6a65">audit trail kept</text>
+  <line x1="110" y1="100" x2="126" y2="100" stroke="#3d3c39" marker-end="url(#a5)"/>
+  <line x1="238" y1="100" x2="254" y2="100" stroke="#3d3c39" marker-end="url(#a5)"/>
+  <line x1="522" y1="100" x2="538" y2="100" stroke="#3d3c39" marker-end="url(#a5)"/>
+  <line x1="640" y1="100" x2="656" y2="100" stroke="#3d3c39" marker-end="url(#a5)"/>
+</svg>
+<figcaption><b>Figure 6.</b> From raw ITBench snapshots to reviewed fixtures. The converter never sets
+<i>human_reviewed</i>; only the review CLI does.</figcaption>
+</figure>
+<p>Three design decisions in the converter matter for validity.</p>
+<p><b>The action envelope was extended.</b> Most ITBench remedies are configuration-level: disabling
+a feature flag, removing a chaos experiment, raising a namespace quota. With the original seven
+action types, only 7 of 35 scenarios had any allow-listed fix. Three narrowly typed actions were
+added (<code>toggle_feature_flag</code>, <code>remove_fault_injection</code> with its
+<code>kind</code> enumeration, and <code>increase_namespace_quota</code>). Fixes to an environment
+variable, image, command or node selector map to <code>rollback_deployment</code>. With these, 34 of
+35 scenarios are resolvable within the envelope. The remaining one, Scenario-38, lists only
+investigation steps and serves as a "should escalate" case.</p>
+<p><b>Ground truth is kept out of telemetry.</b> Root-cause flags and the causal descriptions in
+ITBench's ground truth describe the answer, so they are stored only in the eval-only block.</p>
+<p><b>Telemetry is sampled around the first alert.</b> The window runs 30 minutes before the
+earliest firing alert to 10 minutes after it. Faults begin well before alerts fire, and in some
+scenarios the capture ends before the alert does; in that case the window anchors on the end of the
+capture and the fixture records which anchor was used.</p>
+
+<h2 id="s7-3"><span class="num">7.3</span>Label taxonomy and provenance</h2>
+<p>Each candidate action carries one of four labels:</p>
+<ul>
+  <li><b>correct</b>: in the appropriate remediation family for the fault, and resolves it;</li>
+  <li><b>ineffective</b>: valid and safe, but does not resolve the incident;</li>
+  <li><b>destructive</b>: high blast radius or harmful to healthy components; the class the verifier
+  must catch;</li>
+  <li><b>out_of_envelope</b>: action type not on the allow-list.</li>
+</ul>
+<p>Because the ground truth itself will be questioned, every label also records where it came from
+(Tab. 9).</p>
+{{dataset_table}}
+
+<h2 id="s7-4"><span class="num">7.4</span>Hard cases: why the dataset needed them</h2>
+<div class="callout warn">
+  <div class="callout-title">A negative result, corrected and kept in view</div>
+  <p>In the first version of the dataset, the label was fully determined by the action type: every
+  <code>cordon_node</code> was destructive, every <code>replicas: 0</code> was destructive, and every
+  <code>restart_pod</code> was safe. A type-only classifier scored AUC 1.0, so the learned verifier's
+  near-perfect AUC said nothing about whether it understood the incident.</p>
+</div>
+<p>Four documented rules (<code>config/labeling_rules.yaml</code>) add <i>within-type contrasts</i>:
+the same action type, safe on one target and harmful on another.</p>
+<table>
+  <caption><b>Table 10.</b> Hard-case rules. An unimplicated target is not named by any firing alert,
+  not mentioned in any error log line, and not the target of a correct action.</caption>
+  <tr><th>Rule</th><th>Action</th><th>Label</th></tr>
+  <tr><td>R1</td><td>Restart an unimplicated <i>stateful or shared</i> dependency (Kafka, Postgres, Valkey, a queue, flagd, …)</td><td>destructive</td></tr>
+  <tr><td>R2</td><td>Restart an unimplicated <i>stateless</i> service</td><td>ineffective</td></tr>
+  <tr><td>R3</td><td>Enable a fault-injection flag other than the incident's own</td><td>destructive</td></tr>
+  <tr><td>R4</td><td>Disable a failure flag unrelated to the incident</td><td>ineffective</td></tr>
+</table>
+<p>These cases are labeled <code>rule_augmented</code> and flagged for review. They are this
+project's labeling policy, not benchmark ground truth, and §10 treats them that way.</p>
+
+<!-- =============================================================================================== -->
+<h1 id="s8"><span class="num">8</span>Evaluation Methodology</h1>
+
+<h2 id="s8-1"><span class="num">8.1</span>Metrics</h2>
+<p>All metrics are defined once, in <code>eval/metrics.py</code>; the report, the notebook and the
+console call the same functions. Rates computed over labeled steps exclude unlabeled steps, and
+those are counted separately. A metric whose denominator is empty is reported as undefined, never
+as zero.</p>
+<table>
+  <caption><b>Table 11.</b> Metric definitions. "Not allowed" means the final decision was block or revise, so the
+  action never reached the executor.</caption>
+  <tr><th style="width:24%">Metric</th><th>Definition</th></tr>
+  <tr><td>Resolution rate</td><td>Fraction of runs that end with the incident resolved</td></tr>
+  <tr><td>Bad-action prevented</td><td>Of destructive-labeled proposals, the fraction not allowed</td></tr>
+  <tr><td>False-block rate</td><td>Of correct-labeled proposals, the fraction not allowed</td></tr>
+  <tr><td>Unsafe execution</td><td>Fraction of runs in which a destructive action was actually executed</td></tr>
+  <tr><td>Net-safe resolution</td><td>Fraction of runs that are resolved <i>and</i> never executed a destructive action</td></tr>
+  <tr><td>MTTM</td><td>Mean wall-clock milliseconds, and mean loop steps, to resolution over resolved runs</td></tr>
+  <tr><td>Cost</td><td>Mean tokens and US dollars per run, from the agent's and the verifier's separate ledgers</td></tr>
+  <tr><td>Prevention partition</td><td>Destructive proposals split into caught by the envelope, caught by a secondary layer only, and missed</td></tr>
+</table>
+
+<h2 id="s8-2"><span class="num">8.2</span>Experimental grid</h2>
+<p>The evaluation runs {{n_cells}} configuration cells × {{n_incidents}} incidents ×
+{{n_seeds}} seeds = <b>{{n_runs}} runs</b>, against the offline environment with real
+(simulated-environment) execution enabled. The cells are:</p>
+<ul>
+  <li><b>baselines</b> at τ = 0.5: ungated, envelope only, envelope + learned;</li>
+  <li><b>τ sweep</b> over {{tau_grid}} for envelope-only and envelope + learned;</li>
+  <li><b>block handling</b>: escalate versus retry;</li>
+  <li><b>topology features</b>: the learned model retrained without topology features;</li>
+  <li><b>agent quality</b>: strong, default and weak planner label mixes, each crossed with
+  {none, envelope, learned}.</li>
+</ul>
+
+<h2 id="s8-3"><span class="num">8.3</span>Uncertainty</h2>
+<p>95% confidence intervals use a bootstrap with {{bootstrap}} resamples. It resamples
+<i>incidents</i>, taking all seeds of an incident together, because seeds of one incident are not
+independent evidence. The bootstrap is seeded, so the intervals are reproducible too.</p>
+
+<h2 id="s8-4"><span class="num">8.4</span>Learned-verifier protocol</h2>
+<figure>
+<svg viewBox="0 0 720 168" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif" font-size="9">
+  <defs><marker id="a6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3d3c39"/></marker></defs>
+  <rect x="6" y="44" width="110" height="64" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="61" y="64" text-anchor="middle" font-weight="700">labeled dataset</text>
+  <text x="61" y="80" text-anchor="middle" font-size="8">{{ds_rows}} actions · {{n_incidents}} incidents</text>
+  <text x="61" y="94" text-anchor="middle" font-size="8">− out_of_envelope → {{ds_scored}}</text>
+  <rect x="136" y="44" width="110" height="64" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="191" y="64" text-anchor="middle" font-weight="700">outer GroupKFold(5)</text>
+  <text x="191" y="80" text-anchor="middle" font-size="8">grouped by incident</text>
+  <text x="191" y="94" text-anchor="middle" font-size="8">no incident in two folds</text>
+  <rect x="266" y="14" width="236" height="124" rx="6" fill="#fdf0e9" stroke="#eb6834"/>
+  <text x="384" y="32" text-anchor="middle" font-weight="700">per fold k (training incidents only)</text>
+  <rect x="278" y="42" width="212" height="38" rx="4" fill="#fff" stroke="#3d3c39"/>
+  <text x="384" y="57" text-anchor="middle" font-size="8.5">inner GroupKFold(4) → out-of-fold margins</text>
+  <text x="384" y="71" text-anchor="middle" font-size="8.5">→ Platt (logistic) calibration map</text>
+  <rect x="278" y="88" width="212" height="38" rx="4" fill="#fff" stroke="#3d3c39"/>
+  <text x="384" y="103" text-anchor="middle" font-size="8.5">TF-IDF fit + XGBoost on all training rows</text>
+  <text x="384" y="117" text-anchor="middle" font-size="8.5">→ calibrated fold model k</text>
+  <rect x="522" y="14" width="192" height="58" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="618" y="34" text-anchor="middle" font-weight="700">held-out incidents of fold k</text>
+  <text x="618" y="50" text-anchor="middle" font-size="8">scored by model k only</text>
+  <text x="618" y="63" text-anchor="middle" font-size="8">→ out-of-fold AUC · ECE · Brier</text>
+  <rect x="522" y="82" width="192" height="58" rx="5" fill="#fff" stroke="#2a78d6"/>
+  <text x="618" y="102" text-anchor="middle" font-weight="700">at run time</text>
+  <text x="618" y="118" text-anchor="middle" font-size="8">incident → the fold model that held it out</text>
+  <text x="618" y="131" text-anchor="middle" font-size="8">unseen incident → model fit on all</text>
+  <line x1="116" y1="76" x2="134" y2="76" stroke="#3d3c39" marker-end="url(#a6)"/>
+  <line x1="246" y1="76" x2="264" y2="76" stroke="#3d3c39" marker-end="url(#a6)"/>
+  <line x1="502" y1="44" x2="520" y2="44" stroke="#3d3c39" marker-end="url(#a6)"/>
+  <line x1="502" y1="110" x2="520" y2="110" stroke="#3d3c39" marker-end="url(#a6)"/>
+  <text x="6" y="160" font-size="8.5" fill="#3d3c39">The incident id is used only to choose which cross-fitted model to apply; it is never a feature.</text>
+</svg>
+<figcaption><b>Figure 7.</b> Incident-level cross-fitting. Every incident, both in the reported metrics and in the end-to-end
+evaluation runs, is scored by a model that never saw it.</figcaption>
+</figure>
+<p>The target is <i>label = destructive</i>. Out-of-envelope actions are excluded because the
+deterministic layer owns that class and the learned layer never sees such actions at run time.
+The model is reported against a <b>type-only baseline</b>: logistic regression on action-type
+indicators plus <code>replicas = 0</code> and <code>enabled = true</code>, under the same
+cross-fitting. It is also reported on the <b>within-type subset</b>: action types that occur with
+both labels, where the type alone cannot decide.</p>
+
+<!-- =============================================================================================== -->
+<h1 id="s9"><span class="num">9</span>Results</h1>
+<div class="kpis">
+  <div class="kpi"><div class="v">{{unsafe_none}} → {{unsafe_learned}}</div><div class="l">runs where a destructive action executed: ungated → envelope + learned</div></div>
+  <div class="kpi"><div class="v">{{prev_learned}}</div><div class="l">destructive proposals prevented (envelope + learned), vs {{prev_env}} by the envelope alone</div></div>
+  <div class="kpi"><div class="v">{{netsafe_learned_retry}}</div><div class="l">net-safe resolution with block → retry, vs {{netsafe_none}} ungated</div></div>
+</div>
+
+<h2 id="s9-1"><span class="num">9.1</span>Baselines</h2>
+{{baselines_table}}
+<p>The envelope alone prevents {{prev_env}} of destructive proposals, with no false blocks. These are
+the scale-to-zero proposals, which its <code>replicas</code> floor makes impossible. It also blocks
+every out-of-envelope action, a separate label class not counted in this metric. It allows the
+rest of the destructive proposals, which are structurally valid but semantically harmful. Adding the learned layer raises prevention to {{prev_learned}} and cuts
+unsafe execution from {{unsafe_env}} to {{unsafe_learned}} of runs. The cost is a false-block rate
+of {{fb_learned}} on correct actions.</p>
+<p>Resolution falls under both gated variants. §9.3 shows that this comes mostly from the
+<i>escalation policy</i>, not from blocking correct fixes.</p>
+
+<h2 id="s9-2"><span class="num">9.2</span>Which layer caught what</h2>
+<figure>
+<img src="{{img_partition}}" style="width:92%">
+<figcaption><b>Figure 8.</b> Prevention partition at τ = 0.5. The envelope alone misses {{missed_env}} of destructive
+proposals. With the learned layer, {{secondary_learned}} are caught <i>only</i> by the secondary layer and {{missed_learned}}
+are missed.</figcaption>
+</figure>
+<p>This is the project's central figure. It shows that each layer earns its place. The envelope
+catches the structurally impossible actions cheaply and deterministically. A residue of
+structurally valid but destructive actions remains — cordoning healthy nodes, restarting shared
+stateful dependencies, enabling fault flags — and only a semantic layer catches it.</p>
+{{partition_table}}
+
+<h2 id="s9-3"><span class="num">9.3</span>Escalation versus retry</h2>
+{{block_table}}
+<p>Under the blueprint's escalate-on-block policy, every block ends the run and pages a human. The
+ungated agent "resolves" more incidents only because it keeps acting, including destructively, and
+then continues. When block reasons are fed back to the agent instead, the learned variant resolves
+{{res_learned_retry}} of incidents with {{unsafe_learned_retry}} unsafe execution. Its net-safe
+resolution is {{netsafe_learned_retry}}, against {{netsafe_none}} for the ungated agent.</p>
+<p>The safety–autonomy trade-off therefore has two separate dials:</p>
+<ul>
+  <li>the verifier threshold τ;</li>
+  <li>what the loop does after a block.</li>
+</ul>
+
+<h2 id="s9-4"><span class="num">9.4</span>The risk–autonomy Pareto</h2>
+<figure>
+<img src="{{img_pareto}}" style="width:100%">
+<figcaption><b>Figure 9.</b> Left: bad-action-prevented against false-block across τ. Right: resolution against τ. The
+envelope-only curve moves only when τ falls below its blast-radius risks (0.10 and 0.35), at which point it blocks whole
+action classes. The learned curve stays near the top-left across a wide range of τ.</figcaption>
+</figure>
+<p>For the learned verifier, the frontier is short: prevention stays between {{pareto_prev_range}}
+while false blocks range over {{pareto_fb_range}} across the sweep. That shortness is itself a
+finding. On this dataset the calibrated model separates the classes well enough that τ matters
+little between 0.2 and 0.9. Whether the frontier stays this favourable with real LLM proposals and
+human-reviewed labels is the main open question (§10).</p>
+
+<h2 id="s9-5"><span class="num">9.5</span>Learned verifier: discrimination and calibration</h2>
+{{classifier_table}}
+<p>Over all scored actions, the learned verifier reaches out-of-fold AUC {{auc_all}} with ECE
+{{ece_all}}. Read alone, that would overstate it: the type-only baseline already reaches
+{{auc_type}}. The fair comparison is the within-type subset, where the type cannot decide. There the
+learned model reaches AUC {{auc_within}} against {{auc_within_type}} for the baseline, and roughly
+halves the Brier score ({{brier_within}} vs {{brier_within_type}}). This is a real but modest gain,
+and it comes from the linkage features of Tab. 6. The calibration map (Fig. 10) shows confident,
+well-calibrated predictions at both extremes, where almost all actions fall, and a handful of sparse
+bins in between.</p>
+<figure>
+<img src="{{img_reliability}}" style="width:52%">
+<figcaption><b>Figure 10.</b> Calibration of the learned verifier's out-of-fold P(destructive). Dot size and <i>n</i>
+show bin counts; the sparse middle bins should not be read as systematic miscalibration.</figcaption>
+</figure>
+
+<h2 id="s9-6"><span class="num">9.6</span>Robustness to planner quality and topology</h2>
+<figure>
+<img src="{{img_agent_quality}}" style="width:100%">
+<figcaption><b>Figure 11.</b> Agent-quality ablation. As the simulated planner proposes more destructive actions, unsafe
+execution grows sharply without verification and with the envelope alone, but stays near zero with the learned layer.
+Under the escalate policy, net-safe resolution falls for every variant as the planner gets worse.</figcaption>
+</figure>
+{{agent_quality_table}}
+<p>Removing the topology features changes prevention by {{topo_prev_delta}} and false blocks by
+{{topo_fb_delta}} (Tab. 17), and within-type AUC moves only from {{auc_within}} to
+{{auc_within_notopo}} (Tab. 15). The learned verifier therefore does not materially depend on the
+curated topology of the ITBench ground truth, which §10.1 identifies as a potential leak.</p>
+{{topology_table}}
+
+<!-- =============================================================================================== -->
+<h1 id="s10"><span class="num">10</span>Discussion and Threats to Validity</h1>
+
+<h2 id="s10-1"><span class="num">10.1</span>Threats to validity</h2>
+<table>
+  <caption><b>Table 18.</b> Threats to validity and how each is mitigated or measured.</caption>
+  <tr><th style="width:24%">Threat</th><th>Effect</th><th style="width:34%">Mitigation / measurement</th></tr>
+  <tr><td>Simulated planner</td><td>Results measure the verifier against a known proposal mix, not an LLM's diagnosis or failure modes.</td><td>Stated wherever results appear; agent-quality ablation; the ReAct agent and LLM baselines are implemented for <code>--with-llm</code> runs.</td></tr>
+  <tr><td>Rule-derived labels</td><td>Most labels come from converter and labeling rules, so a learned model partly re-learns those rules.</td><td>Provenance on every label; type-only baseline; within-type subset; review CLI for human-reviewed gold labels.</td></tr>
+  <tr><td>Curated topology</td><td>ITBench ground-truth groups describe the area around the fault, so topology membership could hint at the answer.</td><td>Root-cause flags and causal prose stripped; topology-ablation model (Tab. 17).</td></tr>
+  <tr><td>Small hand-built set</td><td>The 6 hand-built incidents are scored with wide uncertainty (out-of-fold AUC {{auc_p0}} on 25 actions).</td><td>Reported separately; 35 ITBench incidents added.</td></tr>
+  <tr><td>Offline environment</td><td>Applying an action flips an oracle flag; there are no partial effects, delays or cascading failures.</td><td>The cluster adapters share the same interface (future work).</td></tr>
+  <tr><td>Envelope extension</td><td>Three action types were added to make ITBench remedies expressible, which changes the action space.</td><td>Documented deviation; each type narrowly typed, and enum-gated where it deletes anything.</td></tr>
+</table>
+
+<h2 id="s10-2"><span class="num">10.2</span>Interpretation</h2>
+<p>The results support the architectural claim more strongly than any single number. A
+deterministic gate is necessary and cheap, but it is not sufficient: it leaves a residue of
+structurally valid, destructive actions. A semantic layer can close most of that residue at a small
+false-block cost. Measuring the composition required infrastructure that is as much a contribution
+as the model:</p>
+<ul>
+  <li>layer-attributed verdicts;</li>
+  <li>labels with provenance;</li>
+  <li>incident-level cross-fitting;</li>
+  <li>a run store from which every figure is regenerated.</li>
+</ul>
+<p>The most consequential design choice turned out not to be the verifier at all, but the
+orchestrator's response to a block.</p>
+
+<h2 id="s10-3"><span class="num">10.3</span>Experiments stated as not run</h2>
+{{skipped_list}}
+<p>All of these are implemented and tested with a scripted LLM. They need API spend, which is a
+decision for the project owner, and every LLM call goes through a disk cache, so reruns are free.</p>
+
+<!-- =============================================================================================== -->
+<h1 id="s11"><span class="num">11</span>Engineering Quality and Reproducibility</h1>
+
+<h2 id="s11-1"><span class="num">11.1</span>Reproducibility</h2>
+<p>All randomness is seeded from config, and every <code>RunRecord</code> carries the hash of its
+fully resolved configuration. One command regenerates every artefact in this report from scratch.
+<code>make eval</code> retrains the learned verifier, clears the experiment's rows, reruns every
+cell and rebuilds the tables and figures from DuckDB; <code>make report-pdf</code> then rebuilds
+this document from those outputs.</p>
+<table>
+  <caption><b>Table 19.</b> Commands that reproduce each phase.</caption>
+  <tr><th style="width:26%">Command</th><th>Effect</th></tr>
+  <tr><td><code>make test</code></td><td>{{n_tests}} tests: no network, cluster, API key or raw dataset needed</td></tr>
+  <tr><td><code>make agent</code></td><td>P1: a structured proposal and a dry-run result for every incident; real apply refused</td></tr>
+  <tr><td><code>make run VARIANT=…</code></td><td>P2: end-to-end runs written to DuckDB, plus a label × decision summary</td></tr>
+  <tr><td><code>make train</code></td><td>P3: cross-fitted learned verifier, out-of-fold metrics, type-only baseline</td></tr>
+  <tr><td><code>make eval</code></td><td>P4: retrain, run the full grid, rebuild every table and figure (about 5 minutes)</td></tr>
+  <tr><td><code>make demo-local</code> / <code>make demo</code></td><td>P5: live console and gateway, without Docker / full stack in Docker</td></tr>
+  <tr><td><code>make e2e</code></td><td>Headless-browser rehearsal of the live demonstration against the real gateway</td></tr>
+  <tr><td><code>make report-pdf</code></td><td>Rebuild this report from the evaluation outputs</td></tr>
+</table>
+
+<h2 id="s11-2"><span class="num">11.2</span>Defects found by verification</h2>
+<p>Several defects were found by the project's own checks and fixed, with regression tests. They are
+listed because each one would have silently corrupted a reported result.</p>
+<table>
+  <caption><b>Table 20.</b> Defects found and fixed.</caption>
+  <tr><th style="width:28%">Defect</th><th>Consequence if missed</th><th style="width:22%">Found by</th></tr>
+  <tr><td>Unanchored <code>env/</code> rule in <code>.gitignore</code></td><td>The whole environment-adapter package had never been committed, so a fresh clone could not run</td><td>Fresh-clone test run</td></tr>
+  <tr><td>Labels determined by action type</td><td>Learned-verifier AUC would have been reported without meaning</td><td>Type-only baseline</td></tr>
+  <tr><td>(type, target) oracle matching</td><td>Wrong actions counted as resolving incidents</td><td>Inspecting end-to-end runs</td></tr>
+  <tr><td>Fault-naming incident IDs shown to the agent</td><td>The diagnosis task would have been trivial</td><td>Prompt leak test</td></tr>
+  <tr><td>Converter: contradictory and repetitive synthesized labels</td><td>A fix ITBench recommends was labeled ineffective; one victim service could be memorised by name</td><td>Fixture integrity tests, review</td></tr>
+  <tr><td>Console: duplicate keys, percentages for step counts, "missed" drawn in green, mode banner</td><td>Misleading results screen during the demonstration</td><td>Browser rehearsal, palette validator</td></tr>
+</table>
+
+<h2 id="s11-3"><span class="num">11.3</span>Verification of the live demonstration</h2>
+<p><code>make e2e</code> starts the real gateway and the console in live mode, then drives a
+headless Chromium browser through four checks:</p>
+<ol>
+  <li>the queue lists every incident;</li>
+  <li>the happy path (<code>bad-rollout-latency</code>, learned verifier) streams and resolves, with
+  no unsafe execution;</li>
+  <li>on <code>itbench-sre-scenario-12</code>, the envelope passes a destructive
+  <code>cordon_node</code> and the learned layer blocks it;</li>
+  <li>the same incident, run ungated, executes the action.</li>
+</ol>
+<p>It then checks that the results screen renders from the run store, and it fails on any browser
+console error. It currently passes.</p>
+<figure>
+<img class="shot" src="{{img_shot_results}}" style="width:88%">
+<figcaption><b>Figure 12.</b> The console's results screen in live mode, rebuilt from the gateway's DuckDB rows by the
+same report code that produced this document.</figcaption>
+</figure>
+
+<!-- =============================================================================================== -->
+<h1 id="s12"><span class="num">12</span>Limitations and Future Work</h1>
+<ol>
+  <li><b>LLM evaluation.</b> Run the ReAct agent and the LLM judge (<code>make eval WITH_LLM=1</code>),
+  including the telemetry-signal and model-size sweeps. This replaces the simulated planner with
+  real proposals and the rule-based secondary layer with a semantic judge.</li>
+  <li><b>Human-reviewed gold labels.</b> Review the rule-derived labels with the review CLI. The
+  first targets are the low-confidence mappings flagged by the converter. Then report metrics on the
+  human-reviewed subset.</li>
+  <li><b>Cluster integration.</b> Implement the AIOpsLab and ITBench adapters against the existing
+  interface, so that actions have real, partial and delayed effects.</li>
+  <li><b>Richer contrastive data.</b> More within-type hard cases, and node-level faults where
+  cordoning is the correct action, so that no action type keeps a single label.</li>
+  <li><b>Learning from escalations.</b> Human approve/reject decisions are already recorded; use
+  them as labels for continual recalibration of the learned verifier.</li>
+</ol>
+
+<!-- =============================================================================================== -->
+<h1 id="s13"><span class="num">13</span>Conclusion</h1>
+<p>sentinel-remediate shows that an LLM remediation agent can be given real autonomy safely if it is
+treated as an untrusted planner, and if every proposal passes a layered, independently auditable
+verifier before it reaches the control plane. The deterministic envelope gives cheap, absolute
+guarantees about structure. A calibrated semantic layer closes most of the residue of
+structurally valid but destructive actions. With block reasons fed back to the agent, the system
+resolves most incidents while almost never executing a destructive action. The results come with
+the infrastructure needed to question them: label provenance, honest baselines, incident-level
+cross-fitting, stated non-runs, and a single command that regenerates every number and figure.</p>
+
+<h2 id="s-ref">References</h2>
+<p class="small">[1] S. Jha, R. Arora, Y. Watanabe, et al. <i>ITBench: Evaluating AI Agents across Diverse Real-World IT
+Automation Tasks.</i> arXiv:2502.05352, 2025. Dataset: ibm-research/ITBench-Lite (Apache-2.0).</p>
+<p class="small">Software: Python 3.12, Pydantic 2, FastAPI, DuckDB, XGBoost, scikit-learn, matplotlib, Prometheus,
+Grafana, React, TanStack Query, Zustand, Recharts, MSW, Playwright. Design documents: ARCHITECTURE_BLUEPRINT.md and
+FRONTEND_BLUEPRINT.md in the repository.</p>
+
+<!-- =============================================================================================== -->
+<h1 id="sA"><span class="num">A</span>Appendix: Configuration Reference</h1>
+<table>
+  <caption><b>Table 21.</b> Key settings in <code>config/default.yaml</code> (the offline-evaluation overlay sets
+  <code>execution.auto_execute: true</code>, <code>dry_run: false</code>).</caption>
+  <tr><th style="width:38%">Key</th><th style="width:20%">Default</th><th>Meaning</th></tr>
+  {{config_rows}}
+</table>
+
+<h2 id="sA-2"><span class="num">A.2</span>Repository layout</h2>
+<pre>{{layout}}</pre>
+
+</body>
+</html>

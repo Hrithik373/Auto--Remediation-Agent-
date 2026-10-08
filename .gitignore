@@ -28,6 +28,9 @@ htmlcov/
 # under fixtures/incidents/ is committed -- see docs/tasks/itbench_converter_spec.md.
 data/
 
+# Intermediate report renders (scripts/build_report.py); the final PDF in docs/ is committed.
+docs/report/build/
+
 # Run store / artifacts
 *.duckdb
 *.parquet

@@ -1,0 +1,145 @@
+/* Print stylesheet for the sentinel-remediate architecture report (rendered to PDF by
+   scripts/build_report.py via headless Chromium). A4, academic: serif body, sans headings. */
+
+@page { size: A4; margin: 22mm 20mm 22mm 22mm; }
+
+:root {
+  --ink: #0b0b0b;
+  --ink-2: #3d3c39;
+  --muted: #6b6a65;
+  --rule: #c3c2b7;
+  --hair: #e1e0d9;
+  --wash: #f4f4f1;
+  --accent: #2a78d6;      /* envelope / primary */
+  --learned: #eb6834;
+  --judge: #1baf7a;
+  --danger: #d03b3b;
+}
+
+html { font-size: 10.6pt; }
+body {
+  margin: 0;
+  color: var(--ink);
+  background: #ffffff;
+  font-family: "Cambria", "Georgia", "Times New Roman", serif;
+  line-height: 1.5;
+  text-align: justify;
+  hyphens: auto;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+h1, h2, h3, h4, .sans, table, figcaption, .callout-title, .toc {
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  text-align: left;
+  hyphens: manual;
+}
+h1 { font-size: 18pt; margin: 0 0 10pt; padding-bottom: 5pt; border-bottom: 1.5pt solid var(--ink); break-before: page; }
+h1.first { break-before: auto; }
+h2 { font-size: 13pt; margin: 16pt 0 5pt; break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt; break-after: avoid; color: var(--ink-2); }
+h1 .num, h2 .num, h3 .num { color: var(--muted); font-weight: 600; margin-right: 6pt; }
+p { margin: 0 0 7pt; orphans: 3; widows: 3; }
+ul, ol { margin: 0 0 8pt; padding-left: 16pt; }
+li { margin-bottom: 2.5pt; }
+strong { font-weight: 700; }
+
+code, .mono, pre {
+  font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+  font-size: 8.8pt;
+}
+code { background: var(--wash); padding: 0 2.5pt; border-radius: 2pt; white-space: nowrap; }
+pre {
+  background: var(--wash);
+  border-left: 2.5pt solid var(--rule);
+  padding: 6pt 9pt;
+  margin: 4pt 0 10pt;
+  line-height: 1.38;
+  white-space: pre-wrap;
+  text-align: left;
+  break-inside: avoid;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8.6pt;
+  margin: 4pt 0 12pt;
+  break-inside: avoid;
+}
+th, td { padding: 3.5pt 5pt; vertical-align: top; text-align: left; }
+th { font-weight: 600; color: var(--ink-2); border-bottom: 1pt solid var(--ink); }
+td { border-bottom: 0.5pt solid var(--hair); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.highlight td { background: #fdf3ec; font-weight: 600; }
+caption {
+  caption-side: top;
+  text-align: left;
+  font-size: 8.8pt;
+  color: var(--ink-2);
+  padding-bottom: 4pt;
+}
+caption b { color: var(--ink); }
+
+figure { margin: 8pt 0 14pt; break-inside: avoid; text-align: center; }
+figure img { max-width: 100%; }
+figure img.shot { border: 0.5pt solid var(--rule); }
+figure svg { max-width: 100%; height: auto; }
+figcaption { font-size: 8.8pt; color: var(--ink-2); margin-top: 5pt; text-align: left; }
+figcaption b { color: var(--ink); }
+
+.callout {
+  border: 0.75pt solid var(--rule);
+  border-left: 3pt solid var(--accent);
+  background: #f7f9fc;
+  padding: 7pt 10pt;
+  margin: 6pt 0 12pt;
+  break-inside: avoid;
+}
+.callout.warn { border-left-color: var(--learned); background: #fdf7f2; }
+.callout-title { font-weight: 700; font-size: 9.2pt; margin-bottom: 3pt; }
+.callout p:last-child, .callout ul:last-child { margin-bottom: 0; }
+
+.kpis { display: flex; gap: 8pt; margin: 6pt 0 14pt; break-inside: avoid; }
+.kpi { flex: 1; border: 0.75pt solid var(--rule); padding: 7pt 9pt; }
+.kpi .v { font-family: "Segoe UI", Arial, sans-serif; font-size: 17pt; font-weight: 700; line-height: 1.1; }
+.kpi .l { font-family: "Segoe UI", Arial, sans-serif; font-size: 7.8pt; color: var(--ink-2); margin-top: 2pt; text-align: left; }
+
+.two-col { display: flex; gap: 12pt; }
+.two-col > * { flex: 1; }
+.small { font-size: 8.8pt; }
+.muted { color: var(--muted); }
+.nobreak { break-inside: avoid; }
+
+/* ---- front matter ---- */
+.titlepage {
+  height: 250mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: center;
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+.titlepage .kicker { letter-spacing: 2pt; text-transform: uppercase; font-size: 9pt; color: var(--muted); margin-top: 18mm; }
+.titlepage .title { font-size: 25pt; font-weight: 700; line-height: 1.2; margin: 10mm 8mm 4mm; }
+.titlepage .subtitle { font-size: 13pt; color: var(--ink-2); margin: 0 14mm; line-height: 1.4; }
+.titlepage .codename { font-family: "Cascadia Mono", Consolas, monospace; font-size: 10pt; color: var(--accent); margin-top: 6mm; }
+.titlepage .meta { font-size: 10.5pt; line-height: 1.75; }
+.titlepage .meta .k { color: var(--muted); }
+.titlepage .rule { width: 40mm; border-top: 1.5pt solid var(--ink); margin: 6mm auto; }
+.titlepage .foot { font-size: 9pt; color: var(--muted); margin-bottom: 4mm; }
+
+.abstract { break-before: page; }
+.abstract h1 { break-before: auto; }
+.keywords { font-size: 9pt; margin-top: 10pt; }
+
+.toc { break-before: page; }
+.toc h1 { break-before: auto; }
+.toc ol { list-style: none; padding: 0; margin: 0; }
+.toc li { display: flex; align-items: baseline; margin: 0; padding: 2pt 0; font-size: 9.6pt; }
+.toc li.l1 { font-weight: 600; margin-top: 6pt; font-size: 10.2pt; }
+.toc li.l2 { padding-left: 16pt; color: var(--ink-2); }
+.toc li .t { flex: 0 1 auto; }
+.toc li .dots { flex: 1; border-bottom: 0.75pt dotted var(--rule); margin: 0 5pt; transform: translateY(-3pt); }
+.toc li .p { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.toc h2 { font-size: 11pt; margin-top: 14pt; }
