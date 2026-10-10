@@ -1,0 +1,778 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{title}}</title>
+<link rel="stylesheet" href="report.css">
+</head>
+<body>
+
+<!-- ============================================================================================ -->
+<h1 class="first" id="c1"><span class="num">1</span>What the Console Is</h1>
+
+<h2 id="c1-1"><span class="num">1.1</span>Purpose</h2>
+<p>The backend makes decisions: the agent proposes a remediation, the verifier rules on it, and the
+executor acts only on an <code>allow</code>. The console makes those decisions <i>visible</i>, and
+it was designed around the live demonstration. In about three minutes, a viewer should see:</p>
+<ol>
+  <li>an incident's evidence (logs, metrics, traces, alerts, topology), much as an on-call engineer
+  would;</li>
+  <li>the agent's proposal and the verifier's verdict, <b>layer by layer</b>;</li>
+  <li>a destructive action that the deterministic envelope <i>passes</i> and the learned layer
+  <i>blocks</i>. This is the project's thesis on one screen;</li>
+  <li>the aggregate evidence: a Pareto curve, the prevention partition, and baselines.</li>
+</ol>
+
+<h2 id="c1-2"><span class="num">1.2</span>The four screens</h2>
+<table>
+  <caption><b>Table 1.</b> Screens and routes (<code>src/App.tsx</code>).</caption>
+  <tr><th style="width:16%">Screen</th><th style="width:20%">Route</th><th>What it is for</th></tr>
+  <tr><td><b>Queue</b></td><td><code>/</code></td><td>Every incident, with source, fault family, alert count and last outcome. Click a row to open it.</td></tr>
+  <tr><td><b>Triage</b></td><td><code>/incidents/:id</code></td><td>The main screen: evidence, topology, run controls, and the live loop trace with the layered VerdictCard.</td></tr>
+  <tr><td><b>Results</b></td><td><code>/results</code></td><td>Evaluation results: risk–autonomy Pareto chart, prevention partition, baseline metrics, ablations.</td></tr>
+  <tr><td><b>Observability</b></td><td><code>/observability</code></td><td>Embeds the Grafana dashboard of live-loop metrics, when the Docker stack is running.</td></tr>
+</table>
+
+<h2 id="c1-3"><span class="num">1.3</span>Starting it</h2>
+<table>
+  <caption><b>Table 2.</b> The three ways to run the console.</caption>
+  <tr><th style="width:30%">Command</th><th>What you get</th></tr>
+  <tr><td><code>cd frontend</code><br><code>npm run dev</code></td><td><b>Mock mode</b> at http://localhost:5173. No backend needed: a mock server inside the browser answers every API call (§5.2). The header shows <i>mock mode (MSW)</i>.</td></tr>
+  <tr><td><code>make demo-local</code><br><span class="small">(gateway + <code>npm run dev:live</code>)</span></td><td><b>Live mode</b> at http://localhost:5173, talking to the real gateway on :8080. The header shows <i>live gateway</i>. All screenshots in this guide were taken this way.</td></tr>
+  <tr><td><code>make demo</code></td><td>The full Docker stack. The console is served by nginx on :4173, alongside the gateway, Prometheus and Grafana.</td></tr>
+</table>
+
+<!-- ============================================================================================ -->
+<h1 id="c2"><span class="num">2</span>Technology Stack</h1>
+<p>Each library was chosen for one job, and the rest of the code relies on that division of labour.
+Most of the "rules" in later chapters follow from this table.</p>
+<table>
+  <caption><b>Table 3.</b> Libraries and the job each one does.</caption>
+  <tr><th style="width:22%">Library</th><th style="width:26%">Job</th><th>Why it matters here</th></tr>
+  <tr><td>React 18 + TypeScript (strict)</td><td>UI components, type safety</td><td>Every API payload is typed from generated types (§10), so a backend schema change breaks the build instead of the demo.</td></tr>
+  <tr><td>Vite</td><td>Dev server and bundler</td><td>Fast reloads. In live mode its dev server <b>proxies</b> <code>/api</code> to the gateway (<code>vite.config.ts</code>).</td></tr>
+  <tr><td>React Router 6</td><td>URL → screen</td><td>Four routes. The incident ID lives in the URL, so a triage page can be bookmarked and reloaded.</td></tr>
+  <tr><td>TanStack Query 5</td><td><b>Server state</b> (fetch, cache, retry)</td><td>Incidents, runs and experiment tables. Cached by query key, re-fetched when told to (§4.2).</td></tr>
+  <tr><td>Zustand</td><td><b>UI state</b> shared across screens</td><td>τ, the verifier choice and the dry-run flag. The τ slider in Run Controls and the τ marker on the Pareto chart are the same value.</td></tr>
+  <tr><td><code>EventSource</code> (browser built-in)</td><td>The <b>live run stream</b></td><td>Server-Sent Events: the backend pushes each loop step as it happens (§7). The console never polls.</td></tr>
+  <tr><td>MSW (Mock Service Worker)</td><td>Mock mode</td><td>Intercepts <code>fetch</code> and <code>EventSource</code> inside the browser and answers with fixture data (§5.2).</td></tr>
+  <tr><td>Tailwind CSS</td><td>Styling via design tokens</td><td>Colors are named tokens (<code>console-*</code>, <code>decision-*</code>, <code>accent</code>), never raw hex in components (§11).</td></tr>
+  <tr><td>Recharts</td><td>Pareto and partition charts</td><td>Results screen.</td></tr>
+  <tr><td>React Flow</td><td>Topology graph</td><td>Services as nodes, dependencies as edges; alerting services drawn in red.</td></tr>
+  <tr><td>json-schema-to-typescript</td><td>Type generation</td><td>Turns the backend's Pydantic models into <code>src/api/types.ts</code> (§10).</td></tr>
+</table>
+
+<!-- ============================================================================================ -->
+<h1 id="c3"><span class="num">3</span>Project Structure</h1>
+<p>The code is organised <b>by role</b>. Routes are thin screens. Features hold the real components,
+grouped by screen. <code>api/</code> is the only place that talks to the backend. <code>lib/</code>
+holds pure helpers, and <code>mock/</code> holds the fake backend.</p>
+<pre>frontend/
+├── index.html, vite.config.ts, tailwind.config.ts, tsconfig*.json, .eslintrc.cjs
+├── .env.live              live mode: VITE_USE_MOCKS=false, API target, Grafana URL
+├── Dockerfile, nginx.conf container build (nginx serves the app and proxies /api)
+├── scripts/gen-types.mjs  JSON Schema → src/api/types.ts
+├── public/                mockServiceWorker.js (MSW), shield.svg (logo)
+└── src/
+    ├── main.tsx           boot: start MSW if mock mode → QueryClient → &lt;App/&gt;
+    ├── App.tsx            header, navigation, mode indicator, routes
+    ├── routes/            one file per screen (thin: fetch data, lay out features)
+    ├── features/
+    │   ├── queue/         IncidentTable
+    │   ├── triage/        TelemetryPanel, TopologyGraph, DiagnosisCard, RunControls,
+    │   │                  LoopTimeline, ActionCard, VerdictCard
+    │   ├── results/       ParetoChart, PreventionPartition, MetricsGrid, AblationTable
+    │   └── shared/        Card, Tag, StatusDot, CodeBlock, KeyValue
+    ├── api/               client.ts (fetch wrapper), incidents.ts, runs.ts,
+    │                      experiments.ts (hooks), types.ts (GENERATED)
+    ├── store/ui.ts        Zustand store: tau, verifierChoice, dryRun, selectedIncidentId
+    ├── lib/               decisionColors.ts (one source of truth), format.ts (number formats)
+    ├── mock/              handlers.ts, fixtures.ts, experiments.json, browser.ts, server.ts
+    └── styles/index.css   Tailwind layers, scrollbars, focus ring, reduced-motion rule</pre>
+<div class="callout">
+  <div class="callout-title">The dependency rule</div>
+  <p>Data flows one way: <b>routes → features → api hooks → api client → network</b>. Components never
+  call <code>fetch</code> directly, and nothing outside <code>api/</code> knows URLs. That is why
+  mock mode can replace the whole backend without touching a single component.</p>
+</div>
+
+<!-- ============================================================================================ -->
+<h1 id="c4"><span class="num">4</span>Architecture</h1>
+
+<h2 id="c4-1"><span class="num">4.1</span>Layers</h2>
+<figure>
+<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif" font-size="9">
+  <defs><marker id="f1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3d3c39"/></marker></defs>
+  <rect x="10" y="10" width="420" height="40" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="22" y="27" font-weight="700">Routes</text>
+  <text x="22" y="42" font-size="8">QueueRoute · TriageRoute · ResultsRoute · ObservabilityRoute (fetch data, lay out)</text>
+  <rect x="10" y="66" width="420" height="40" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="22" y="83" font-weight="700">Features</text>
+  <text x="22" y="98" font-size="8">IncidentTable · TelemetryPanel · TopologyGraph · RunControls · LoopTimeline · VerdictCard · charts</text>
+  <rect x="10" y="122" width="200" height="56" rx="5" fill="#eef4fc" stroke="#2a78d6"/>
+  <text x="22" y="139" font-weight="700">api/ hooks</text>
+  <text x="22" y="154" font-size="8">useIncidents · useIncident · useStartRun</text>
+  <text x="22" y="167" font-size="8">usePareto · useMetrics · … (TanStack Query)</text>
+  <rect x="230" y="122" width="200" height="56" rx="5" fill="#fdf0e9" stroke="#eb6834"/>
+  <text x="242" y="139" font-weight="700">useRunStream</text>
+  <text x="242" y="154" font-size="8">EventSource: live run, never polled</text>
+  <text x="242" y="167" font-size="8">steps[] · final · status</text>
+  <rect x="10" y="194" width="420" height="34" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="22" y="215" font-weight="700">api/client.ts</text>
+  <text x="110" y="215" font-size="8">apiGet · apiPost · sseUrl: base URL /api, JSON, errors as ApiError</text>
+  <rect x="10" y="244" width="200" height="46" rx="5" fill="#fff" stroke="#6b6a65" stroke-dasharray="4 3"/>
+  <text x="110" y="263" text-anchor="middle" font-weight="700">MSW worker (mock mode)</text>
+  <text x="110" y="278" text-anchor="middle" font-size="8">answers /api/* in the browser</text>
+  <rect x="230" y="244" width="200" height="46" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="330" y="263" text-anchor="middle" font-weight="700">Vite proxy / nginx (live)</text>
+  <text x="330" y="278" text-anchor="middle" font-size="8">/api → gateway :8080</text>
+  <rect x="470" y="244" width="240" height="46" rx="5" fill="#fff" stroke="#2a78d6"/>
+  <text x="590" y="263" text-anchor="middle" font-weight="700">FastAPI gateway</text>
+  <text x="590" y="278" text-anchor="middle" font-size="8">orchestrator · DuckDB · eval report code</text>
+  <line x1="220" y1="50" x2="220" y2="64" stroke="#3d3c39" marker-end="url(#f1)"/>
+  <line x1="110" y1="106" x2="110" y2="120" stroke="#3d3c39" marker-end="url(#f1)"/>
+  <line x1="330" y1="106" x2="330" y2="120" stroke="#3d3c39" marker-end="url(#f1)"/>
+  <line x1="110" y1="178" x2="110" y2="192" stroke="#3d3c39" marker-end="url(#f1)"/>
+  <line x1="330" y1="178" x2="330" y2="192" stroke="#3d3c39" marker-end="url(#f1)"/>
+  <line x1="110" y1="228" x2="110" y2="242" stroke="#3d3c39" marker-end="url(#f1)"/>
+  <line x1="330" y1="228" x2="330" y2="242" stroke="#3d3c39" marker-end="url(#f1)"/>
+  <line x1="430" y1="267" x2="468" y2="267" stroke="#3d3c39" marker-end="url(#f1)"/>
+  <rect x="470" y="10" width="240" height="168" rx="6" fill="#f4f4f1" stroke="#c3c2b7"/>
+  <text x="482" y="28" font-weight="700">Cross-cutting</text>
+  <text x="482" y="46" font-size="8.5">store/ui.ts (Zustand): τ, verifier, dry-run</text>
+  <text x="482" y="62" font-size="8.5">lib/decisionColors.ts: color means decision</text>
+  <text x="482" y="78" font-size="8.5">lib/format.ts: %, ms, tokens, $</text>
+  <text x="482" y="94" font-size="8.5">api/types.ts: GENERATED from Pydantic</text>
+  <text x="482" y="110" font-size="8.5">features/shared/: Card, Tag, StatusDot, …</text>
+  <text x="482" y="126" font-size="8.5">tailwind.config.ts: design tokens</text>
+  <text x="482" y="150" font-size="8" fill="#6b6a65">MSW is chosen at boot (main.tsx),</text>
+  <text x="482" y="162" font-size="8" fill="#6b6a65">components never know which is active</text>
+</svg>
+<figcaption><b>Figure 1.</b> Layers of the console. A request always travels down through the API client. The only
+switch between mock and live is <i>who answers</i> at the bottom: the MSW worker, or the proxy to the gateway.</figcaption>
+</figure>
+
+<h2 id="c4-2"><span class="num">4.2</span>Where state lives</h2>
+<p>A frontend gets messy when the same data is kept in two places. The console avoids that with four
+kinds of state, each with exactly one home (Tab. 4, Fig. 2).</p>
+<table>
+  <caption><b>Table 4.</b> The four kinds of state and their homes.</caption>
+  <tr><th style="width:18%">Kind</th><th style="width:22%">Home</th><th>Examples and rules</th></tr>
+  <tr><td><b>Server state</b></td><td>TanStack Query</td><td>Incident list (<code>["incidents"]</code>), one incident (<code>["incident", id]</code>), runs (<code>["runs"]</code>), experiment tables. Cached, retried once; <code>staleTime</code> 10 s; no re-fetch on window focus (<code>main.tsx</code>).</td></tr>
+  <tr><td><b>Live run</b></td><td><code>useRunStream</code> (local state + <code>EventSource</code>)</td><td>The steps of the run in progress, its status and its final record. Not a Query: it is pushed, not fetched. When it finishes it <i>invalidates</i> <code>["runs"]</code>, so cached lists refresh.</td></tr>
+  <tr><td><b>Shared UI state</b></td><td>Zustand <code>useUiStore</code></td><td><code>tau</code>, <code>verifierChoice</code>, <code>dryRun</code>, <code>selectedIncidentId</code>. Shared by Run Controls and the Pareto τ marker.</td></tr>
+  <tr><td><b>Local UI state</b></td><td><code>useState</code> in a component</td><td>Selected telemetry tab, whether a timeline step is expanded, the current <code>runId</code> in TriageRoute.</td></tr>
+</table>
+<figure>
+<svg viewBox="0 0 720 150" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif" font-size="9">
+  <defs><marker id="f2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3d3c39"/></marker></defs>
+  <rect x="10" y="20" width="160" height="56" rx="5" fill="#eef4fc" stroke="#2a78d6"/>
+  <text x="90" y="42" text-anchor="middle" font-weight="700">Zustand useUiStore</text>
+  <text x="90" y="58" text-anchor="middle" font-size="8">tau · verifierChoice · dryRun</text>
+  <rect x="210" y="8" width="150" height="34" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="285" y="29" text-anchor="middle">RunControls (Triage)</text>
+  <rect x="210" y="54" width="150" height="34" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="285" y="75" text-anchor="middle">ParetoChart τ marker (Results)</text>
+  <path d="M170,40 H190 V25 H208" fill="none" stroke="#3d3c39" marker-end="url(#f2)" marker-start="url(#f2)"/>
+  <path d="M170,56 H190 V71 H208" fill="none" stroke="#3d3c39" marker-end="url(#f2)" marker-start="url(#f2)"/>
+  <rect x="410" y="8" width="140" height="44" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="480" y="26" text-anchor="middle" font-weight="700">TanStack Query cache</text>
+  <text x="480" y="40" text-anchor="middle" font-size="8">["incidents"] ["runs"] ["pareto", …]</text>
+  <rect x="410" y="86" width="140" height="44" rx="5" fill="#fdf0e9" stroke="#eb6834"/>
+  <text x="480" y="104" text-anchor="middle" font-weight="700">useRunStream</text>
+  <text x="480" y="118" text-anchor="middle" font-size="8">steps[] · final · status</text>
+  <path d="M480,86 V54" fill="none" stroke="#eb6834" stroke-dasharray="4 3" marker-end="url(#f2)"/>
+  <text x="486" y="74" font-size="8" fill="#b24f22">on final: invalidate ["runs"]</text>
+  <rect x="590" y="40" width="120" height="56" rx="5" fill="#fff" stroke="#6b6a65"/>
+  <text x="650" y="60" text-anchor="middle" font-weight="700">network</text>
+  <text x="650" y="75" text-anchor="middle" font-size="8">fetch (Query)</text>
+  <text x="650" y="87" text-anchor="middle" font-size="8">SSE (stream)</text>
+  <line x1="550" y1="30" x2="588" y2="55" stroke="#3d3c39" marker-start="url(#f2)"/>
+  <line x1="550" y1="108" x2="588" y2="82" stroke="#3d3c39" marker-start="url(#f2)"/>
+  <text x="10" y="140" font-size="8.5" fill="#3d3c39">Moving τ in Run Controls also moves the Pareto marker, because both read the same store value.</text>
+</svg>
+<figcaption><b>Figure 2.</b> Ownership of state. Each value has one home; components subscribe to it rather than copying it.</figcaption>
+</figure>
+
+<!-- ============================================================================================ -->
+<h1 id="c5"><span class="num">5</span>Boot Sequence, Mock Mode and Live Mode</h1>
+
+<h2 id="c5-1"><span class="num">5.1</span>What happens when the page loads</h2>
+<ol>
+  <li><code>index.html</code> loads <code>src/main.tsx</code>.</li>
+  <li><code>main.tsx</code> runs <code>enableMocking()</code>. If <code>VITE_USE_MOCKS</code> is
+  anything other than <code>"false"</code>, it starts the MSW worker from <code>mock/browser.ts</code>
+  and <b>waits</b> for it before rendering. This avoids a race in which the first fetch escapes to a
+  backend that isn't there.</li>
+  <li>It creates one <code>QueryClient</code> (10 s stale time, one retry, no re-fetch on focus) and
+  renders <code>&lt;App/&gt;</code> inside <code>QueryClientProvider</code>.</li>
+  <li><code>App.tsx</code> draws the header (logo, navigation, mode indicator) and a
+  <code>&lt;Routes&gt;</code> switch that mounts one screen.</li>
+</ol>
+
+<h2 id="c5-2"><span class="num">5.2</span>Mock mode</h2>
+<p>MSW installs a <b>service worker</b> (<code>public/mockServiceWorker.js</code>) that intercepts
+the page's network requests and answers <code>/api/*</code> from <code>mock/handlers.ts</code>. To
+the rest of the app the responses look exactly like real ones, because handlers return the same JSON
+shapes and use the same generated types. Unmatched requests (fonts, images) pass through
+untouched.</p>
+<ul>
+  <li><b>Incidents</b> come from <code>mock/fixtures.ts</code>: six incidents mirroring the
+  hand-built backend fixtures, with full telemetry for the two used in the demo.</li>
+  <li><b>Runs are simulated.</b> <code>POST /api/runs</code> picks a canned <code>RunRecord</code>.
+  The stream handler then replays its steps as genuine SSE events, about 0.9 s apart, so the
+  timeline really streams. This is a demo device, not a real orchestrator.</li>
+  <li><b>Results are measured.</b> <code>mock/experiments.json</code> is a snapshot of the real
+  <code>make eval</code> output, written by <code>make mock-results</code>. Mock mode therefore shows
+  real numbers, and the Results header says which experiment they came from.</li>
+</ul>
+
+<h2 id="c5-3"><span class="num">5.3</span>Live mode</h2>
+<p>With <code>VITE_USE_MOCKS=false</code> (set by <code>.env.live</code>, used by
+<code>npm run dev:live</code>), MSW never starts and requests go to <code>/api</code> on the same
+origin:</p>
+<ul>
+  <li>In development, Vite's proxy forwards them to <code>VITE_API_TARGET</code> (default
+  <code>http://localhost:8080</code>).</li>
+  <li>In Docker, nginx forwards them to the gateway with buffering off, so the SSE stream is not held
+  back.</li>
+</ul>
+<p>The same-origin <code>/api</code> path means the browser never needs CORS. The header's mode
+indicator reads the same variable, so you can always tell which mode you are looking at.</p>
+<figure>
+<svg viewBox="0 0 720 128" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif" font-size="9">
+  <defs><marker id="f3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3d3c39"/></marker></defs>
+  <rect x="10" y="44" width="130" height="40" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="75" y="61" text-anchor="middle" font-weight="700">fetch("/api/…")</text>
+  <text x="75" y="75" text-anchor="middle" font-size="8">or EventSource</text>
+  <polygon points="200,64 240,44 280,64 240,84" fill="#fff" stroke="#3d3c39"/>
+  <text x="240" y="62" text-anchor="middle" font-size="8">VITE_USE_</text>
+  <text x="240" y="72" text-anchor="middle" font-size="8">MOCKS?</text>
+  <line x1="140" y1="64" x2="198" y2="64" stroke="#3d3c39" marker-end="url(#f3)"/>
+  <rect x="330" y="8" width="170" height="46" rx="5" fill="#fff" stroke="#6b6a65" stroke-dasharray="4 3"/>
+  <text x="415" y="27" text-anchor="middle" font-weight="700">MSW service worker</text>
+  <text x="415" y="41" text-anchor="middle" font-size="8">handlers.ts + fixtures + experiments.json</text>
+  <rect x="330" y="74" width="170" height="46" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="415" y="93" text-anchor="middle" font-weight="700">Vite proxy (dev) / nginx</text>
+  <text x="415" y="107" text-anchor="middle" font-size="8">same-origin /api, no CORS</text>
+  <rect x="540" y="74" width="170" height="46" rx="5" fill="#fff" stroke="#2a78d6"/>
+  <text x="625" y="93" text-anchor="middle" font-weight="700">gateway :8080</text>
+  <text x="625" y="107" text-anchor="middle" font-size="8">real orchestrator + DuckDB</text>
+  <path d="M260,54 L328,31" fill="none" stroke="#3d3c39" marker-end="url(#f3)"/>
+  <text x="270" y="34" font-size="8">true / unset</text>
+  <path d="M260,74 L328,97" fill="none" stroke="#3d3c39" marker-end="url(#f3)"/>
+  <text x="278" y="104" font-size="8">"false"</text>
+  <line x1="500" y1="97" x2="538" y2="97" stroke="#3d3c39" marker-end="url(#f3)"/>
+</svg>
+<figcaption><b>Figure 3.</b> One code path, two answerers. The decision is made once, at boot.</figcaption>
+</figure>
+<table>
+  <caption><b>Table 5.</b> Environment variables (prefix <code>VITE_</code> so Vite exposes them to the browser).</caption>
+  <tr><th style="width:24%">Variable</th><th style="width:22%">Set in</th><th>Effect</th></tr>
+  <tr><td><code>VITE_USE_MOCKS</code></td><td><code>.env.live</code>, Docker build arg</td><td><code>"false"</code> means live mode; anything else (including unset) means mock mode.</td></tr>
+  <tr><td><code>VITE_API_TARGET</code></td><td><code>.env.live</code></td><td>Where the dev proxy forwards <code>/api</code> (default :8080).</td></tr>
+  <tr><td><code>VITE_GRAFANA_URL</code></td><td><code>.env.live</code>, Docker build arg</td><td>Grafana dashboard URL for the Observability screen. If unset, the screen shows an explanation instead of a broken frame.</td></tr>
+</table>
+
+<!-- ============================================================================================ -->
+<h1 id="c6"><span class="num">6</span>The Screens, One by One</h1>
+
+<h2 id="c6-1"><span class="num">6.1</span>Queue</h2>
+<figure>
+<img class="shot" src="{{shot_queue}}" style="width:100%">
+<figcaption><b>Figure 4.</b> The Queue screen in live mode: 41 incidents served by the gateway.</figcaption>
+</figure>
+<p><code>QueueRoute</code> calls <code>useIncidents()</code> (<code>GET /api/incidents</code>) and
+hands the list to <code>IncidentTable</code>. Each row shows:</p>
+<ul>
+  <li>the incident ID, in monospace because it is machine output;</li>
+  <li>the source tag (<code>offline</code> or <code>itbench</code>);</li>
+  <li>the fault-family tag;</li>
+  <li>the alert count;</li>
+  <li>a status dot.</li>
+</ul>
+<p>The status comes from the latest console run of that incident: <i>queued</i> if never run, then
+<i>resolved</i>, <i>blocked</i> or <i>escalated</i>. Its color is a decision color (§11.1). Clicking
+a row calls <code>navigate("/incidents/&lt;id&gt;")</code>.</p>
+
+<h2 id="c6-2"><span class="num">6.2</span>Triage</h2>
+<figure>
+<img class="shot" src="{{shot_triage}}" style="width:100%">
+<figcaption><b>Figure 5.</b> Triage for <code>pod-crashloop</code>, before a run: telemetry (logs), topology
+(<code>payments-api</code> red because an alert targets it) and run controls. The loop trace sits underneath.</figcaption>
+</figure>
+<p><code>TriageRoute</code> reads <code>:incidentId</code> from the URL, loads the incident with
+<code>useIncident(id)</code>, and holds one piece of local state: the <code>runId</code> of the run
+it is showing. It passes that ID to <code>useRunStream(runId)</code>. The layout is a three-column
+grid: evidence and the loop trace across two columns, run controls in a narrow right column.</p>
+
+<h3 id="c6-2-1"><span class="num">6.2.1</span>TelemetryPanel</h3>
+<div class="two-col">
+<div>
+<p>Four tabs, held in local state:</p>
+<ul>
+  <li><b>Logs</b>: monospace, with lines containing FATAL or ERROR in the block color.</li>
+  <li><b>Metrics</b>: one small bar per data point, scaled to the series maximum. Bars, not a chart
+  library, because this is a sparkline-style glance, not an analysis tool.</li>
+  <li><b>Traces</b> and <b>Alerts</b>: pretty-printed JSON in <code>CodeBlock</code>.</li>
+</ul>
+<p>The generated types mark telemetry fields as optional (<code>?</code>). The backend defaults them
+to empty lists or maps but JSON Schema does not say so, so the panel normalises them once with
+<code>?? []</code> and <code>?? {}</code>.</p>
+</div>
+<figure style="margin-top:0"><img class="shot" src="{{shot_telemetry_metrics}}" style="width:100%">
+<figcaption><b>Figure 6.</b> The Metrics tab: restarts rising, readiness falling, errors climbing.</figcaption></figure>
+</div>
+
+<h3 id="c6-2-2"><span class="num">6.2.2</span>TopologyGraph</h3>
+<p>The topology graph is built with React Flow:</p>
+<ul>
+  <li>Each service in <code>telemetry.topology.services</code> becomes a node, laid out left to right
+  in a zig-zag.</li>
+  <li>Each <code>[source, target]</code> pair becomes an edge.</li>
+  <li>A service is drawn red if some alert's <code>target</code> starts with its name, so
+  <code>payments-api</code> matches the pod <code>payments-api-7d9f-xk2z</code>.</li>
+  <li>Edges touching a red node are animated.</li>
+  <li>Nodes can't be dragged or connected; the graph is for reading, not editing.</li>
+  <li>The layout is computed in <code>useMemo</code>, so it is only redone when the telemetry
+  changes.</li>
+</ul>
+
+<h3 id="c6-2-3"><span class="num">6.2.3</span>RunControls</h3>
+<div class="two-col">
+<div>
+<p>Run Controls holds the experiment's three knobs, all stored in Zustand:</p>
+<ul>
+  <li><b>Verifier</b>: <i>Ungated</i> (<code>none</code>), <i>Envelope only</i>, <i>Learned</i>
+  (default; works offline), <i>LLM-judge</i> and <i>Combined</i>. The last two need an API key on
+  the gateway; without one the judge fails closed and blocks everything.</li>
+  <li><b>Risk threshold τ</b>: 0–1 in steps of 0.05.</li>
+  <li><b>Dry-run</b>: when ticked, the run ends at the first vetted plan and nothing is
+  applied.</li>
+</ul>
+<p><b>Start run</b> calls <code>useStartRun()</code>, a TanStack <i>mutation</i>. On success it hands
+the new <code>run_id</code> up to TriageRoute. The button is disabled while a run is connecting or
+streaming.</p>
+</div>
+<figure style="margin-top:0"><img class="shot" src="{{shot_run_controls}}" style="width:92%">
+<figcaption><b>Figure 7.</b> Run controls. Hovering a verifier shows what it does.</figcaption></figure>
+</div>
+
+<h3 id="c6-2-4"><span class="num">6.2.4</span>DiagnosisCard</h3>
+<p>The Diagnosis card appears once a run has produced a step. It shows the latest proposal's
+<code>rationale</code> and <code>predicted_effect</code>, which is the agent's own account of what is
+wrong and what its action will do. Because the agent is an untrusted planner, the card only states
+its claim; the VerdictCard is where that claim is judged.</p>
+
+<h2 id="c6-3"><span class="num">6.3</span>Results</h2>
+<figure>
+<img class="shot" src="{{shot_results}}" style="width:84%">
+<figcaption><b>Figure 8.</b> Results in live mode, rebuilt by the gateway from the evaluation's DuckDB rows.</figcaption>
+</figure>
+<p>Four hooks fetch the four tables in parallel. The header line says where the numbers came from
+(<i>live: rebuilt from the gateway's DuckDB run store</i>, or the mock snapshot's experiment). If the
+store has no evaluation yet, the screen asks you to run <code>make eval</code> instead of showing
+empty charts.</p>
+<ul>
+  <li><b>ParetoChart</b>: bad-action-prevented (y) against false-block (x) across τ, one line per
+  verifier variant.
+    <ul>
+      <li>Colors are keyed by <b>variant</b> (envelope blue, learned orange, judge aqua), never by
+      position, so a missing series cannot repaint the others.</li>
+      <li>The <b>τ slider</b> moves a marker to the nearest swept point on each line. It is the same
+      τ as in Run Controls.</li>
+    </ul>
+  </li>
+  <li><b>PreventionPartition</b>: for each baseline, a stacked bar splitting destructive proposals
+  into <i>missed (reached the executor)</i>, <i>caught by envelope</i> and <i>caught by
+  judge/learned only</i>. "Missed" is magenta and sits first, against the baseline, where its
+  length is easiest to compare (§11.2).</li>
+  <li><b>MetricsGrid</b>: resolution, bad-prevented, false-block, MTTM and cost per baseline. It is a
+  table, not a chart, because readers compare exact values.</li>
+  <li><b>AblationTable</b>: rows grouped by ablation. Rates are shown as percentages; step counts as
+  plain numbers.</li>
+</ul>
+
+<h2 id="c6-4"><span class="num">6.4</span>Observability</h2>
+<figure>
+<img class="shot" src="{{shot_observability}}" style="width:84%">
+<figcaption><b>Figure 9.</b> Observability without Grafana running: the screen explains what is missing instead of showing a broken frame.</figcaption>
+</figure>
+<p>This screen embeds Grafana in an <code>&lt;iframe&gt;</code> when <code>VITE_GRAFANA_URL</code> is
+set. With <code>make demo</code>, it shows the provisioned "sentinel — live loop" dashboard: verdicts
+by decision, destructive actions blocked versus executed, runs by outcome, step latency and LLM
+spend. The rule is <i>embed Grafana, don't rebuild it</i>.</p>
+
+<!-- ============================================================================================ -->
+<h1 id="c7"><span class="num">7</span>The Live Run, Step by Step</h1>
+<p>This is the most important flow in the console. Fig. 10 traces one click of <b>Start run</b> from
+the button to the run summary.</p>
+<figure>
+<svg viewBox="0 0 720 330" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif" font-size="8.5">
+  <defs><marker id="f4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3d3c39"/></marker></defs>
+  <!-- lifelines -->
+  <g font-weight="700" font-size="9" text-anchor="middle">
+    <rect x="10" y="8" width="100" height="30" rx="4" fill="#fff" stroke="#3d3c39"/><text x="60" y="27">RunControls</text>
+    <rect x="135" y="8" width="100" height="30" rx="4" fill="#fff" stroke="#3d3c39"/><text x="185" y="27">TriageRoute</text>
+    <rect x="260" y="8" width="110" height="30" rx="4" fill="#fdf0e9" stroke="#eb6834"/><text x="315" y="27">useRunStream</text>
+    <rect x="395" y="8" width="100" height="30" rx="4" fill="#fff" stroke="#3d3c39"/><text x="445" y="27">LoopTimeline</text>
+    <rect x="520" y="8" width="190" height="30" rx="4" fill="#eef4fc" stroke="#2a78d6"/><text x="615" y="27">gateway /api</text>
+  </g>
+  <g stroke="#c3c2b7" stroke-dasharray="3 3">
+    <line x1="60" y1="38" x2="60" y2="322"/><line x1="185" y1="38" x2="185" y2="322"/><line x1="315" y1="38" x2="315" y2="322"/>
+    <line x1="445" y1="38" x2="445" y2="322"/><line x1="615" y1="38" x2="615" y2="322"/>
+  </g>
+  <line x1="60" y1="60" x2="613" y2="60" stroke="#3d3c39" marker-end="url(#f4)"/>
+  <text x="340" y="55" text-anchor="middle">① useStartRun → POST /api/runs {incident_id, verifier, tau, dry_run}</text>
+  <line x1="615" y1="82" x2="62" y2="82" stroke="#3d3c39" stroke-dasharray="4 2" marker-end="url(#f4)"/>
+  <text x="340" y="77" text-anchor="middle">② {run_id}: the orchestrator starts in a background thread</text>
+  <line x1="60" y1="104" x2="183" y2="104" stroke="#3d3c39" marker-end="url(#f4)"/>
+  <text x="122" y="99" text-anchor="middle">③ onStarted(run_id)</text>
+  <line x1="185" y1="126" x2="313" y2="126" stroke="#3d3c39" marker-end="url(#f4)"/>
+  <text x="250" y="121" text-anchor="middle">④ setRunId → hook re-runs</text>
+  <line x1="315" y1="150" x2="613" y2="150" stroke="#3d3c39" marker-end="url(#f4)"/>
+  <text x="465" y="145" text-anchor="middle">⑤ new EventSource(/api/runs/{id}/stream) · status = connecting</text>
+  <line x1="615" y1="176" x2="317" y2="176" stroke="#eb6834" marker-end="url(#f4)"/>
+  <text x="465" y="171" text-anchor="middle" fill="#b24f22">⑥ event: step (StepRecord) · repeats per loop step</text>
+  <line x1="315" y1="198" x2="443" y2="198" stroke="#3d3c39" marker-end="url(#f4)"/>
+  <text x="380" y="193" text-anchor="middle">⑦ steps = [...steps, step]</text>
+  <text x="452" y="216" font-size="8">⑧ new StepNode fades in;</text>
+  <text x="452" y="227" font-size="8">pulsing "diagnosing next step…"</text>
+  <line x1="615" y1="248" x2="317" y2="248" stroke="#eb6834" marker-end="url(#f4)"/>
+  <text x="465" y="243" text-anchor="middle" fill="#b24f22">⑨ event: final (RunRecord) · stream closes</text>
+  <line x1="315" y1="270" x2="443" y2="270" stroke="#3d3c39" marker-end="url(#f4)"/>
+  <text x="380" y="265" text-anchor="middle">⑩ status = done · final</text>
+  <text x="452" y="288" font-size="8">⑪ RunSummary: resolved? · unsafe</text>
+  <text x="452" y="299" font-size="8">action reached exec? · MTTM · tokens · cost</text>
+  <text x="200" y="300" font-size="8" fill="#6b6a65">⑫ invalidate ["runs"]: cached run lists</text>
+  <text x="200" y="311" font-size="8" fill="#6b6a65">and Queue statuses refresh</text>
+</svg>
+<figcaption><b>Figure 10.</b> One run from click to summary. Steps ⑥–⑧ repeat once per orchestrator step. The browser
+receives each step as the backend produces it, so the timeline grows in real time.</figcaption>
+</figure>
+
+<h2 id="c7-1"><span class="num">7.1</span>Why EventSource and not polling</h2>
+<p>A run produces steps one at a time. Polling would either lag behind (a slow interval) or hammer
+the server (a fast one), and would replay steps it had already seen. Server-Sent Events invert
+this: the backend pushes each <code>StepRecord</code> the moment the orchestrator emits it. The
+browser's <code>EventSource</code> handles reconnection, and the gateway replays the full event log
+to a reconnecting client.</p>
+<p>The live run is deliberately <b>not</b> a TanStack Query. It is a stream with its own lifecycle,
+and it touches the Query cache only once, to invalidate <code>["runs"]</code> when it finishes.</p>
+
+<h2 id="c7-2"><span class="num">7.2</span>The stream's states</h2>
+<table>
+  <caption><b>Table 6.</b> <code>useRunStream</code> status values and what the timeline shows (<code>src/api/runs.ts</code>, <code>LoopTimeline.tsx</code>).</caption>
+  <tr><th style="width:14%">Status</th><th style="width:38%">When</th><th>Timeline shows</th></tr>
+  <tr><td><code>idle</code></td><td>No <code>runId</code> yet</td><td>"Start a run to see the loop trace."</td></tr>
+  <tr><td><code>connecting</code></td><td>EventSource created, not yet open</td><td>Pulsing dot: "connecting…"</td></tr>
+  <tr><td><code>streaming</code></td><td>Open; zero or more steps received</td><td>The steps so far, plus a pulsing "diagnosing next step…"</td></tr>
+  <tr><td><code>done</code></td><td><code>final</code> event received</td><td>All steps plus the <b>RunSummary</b></td></tr>
+  <tr><td><code>error</code></td><td>Stream failed before <code>final</code></td><td>"Stream error — the run may still have progressed server-side."</td></tr>
+</table>
+<p>The hook also cleans up after itself. Changing <code>runId</code>, or leaving the page, closes the
+previous <code>EventSource</code> in the effect's cleanup function, so old runs never write into a
+new timeline.</p>
+
+<h2 id="c7-3"><span class="num">7.3</span>Reading a timeline step</h2>
+<figure>
+<img class="shot" src="{{shot_timeline_resolved}}" style="width:78%">
+<figcaption><b>Figure 11.</b> A resolved run (<code>bad-rollout-latency</code>, Learned, real apply). Envelope and learned
+layer both allow; the rollback is applied; the summary shows <i>Resolved</i> and no unsafe execution.</figcaption>
+</figure>
+<p>Each step row shows the step index, action type and target, and an <b>outcome pill</b>. The pill
+is derived from the step itself by <code>outcomePillForStep</code> (Tab. 7). Clicking the row expands
+it to show the ActionCard and the VerdictCard. The first step, and any step that was not allowed,
+start expanded, because those are the steps worth reading.</p>
+<table>
+  <caption><b>Table 7.</b> Outcome pills.</caption>
+  <tr><th style="width:30%">Condition</th><th style="width:30%">Pill</th><th>Color</th></tr>
+  <tr><td>verdict = block</td><td><code>blocked</code></td><td>block (red)</td></tr>
+  <tr><td>verdict = revise</td><td><code>revised → retry</code></td><td>revise (amber)</td></tr>
+  <tr><td>allowed and resolved</td><td><code>applied · resolved</code></td><td>allow (emerald)</td></tr>
+  <tr><td>allowed, not resolved</td><td><code>applied · not resolved</code></td><td>allow (emerald)</td></tr>
+</table>
+<p>The <b>RunSummary</b> at the bottom carries the run's safety headline, <i>Unsafe action reached
+exec: yes/no</i>, along with MTTM, tokens and cost. Offline the agent and the learned verifier make
+no LLM calls, so tokens and cost read 0 and $0.0000.</p>
+
+<!-- ============================================================================================ -->
+<h1 id="c8"><span class="num">8</span>The VerdictCard</h1>
+<p>The VerdictCard is the project's contribution made visible. A collapsed "BLOCK" would hide the
+point. The card shows the whole decision pipeline, so a viewer can see <i>which layer</i> passed an
+action and <i>which layer</i> caught it.</p>
+<figure>
+<img class="shot" src="{{shot_verdict_blocked}}" style="width:78%">
+<figcaption><b>Figure 12.</b> The thesis on one screen (<code>itbench-sre-scenario-12</code>, Learned). The envelope
+<b>allows</b> <code>cordon_node</code> (allow-listed, valid params, risk 35%). The LLM judge is greyed out, being inactive
+for this run. The learned layer <b>blocks</b> it at risk 100% against τ = 0.5. Combined: Block, <i>never reached executor</i>.</figcaption>
+</figure>
+<table>
+  <caption><b>Table 8.</b> How the VerdictCard renders a <code>Verdict</code> (<code>src/features/triage/VerdictCard.tsx</code>).</caption>
+  <tr><th style="width:24%">Part</th><th>Rule</th></tr>
+  <tr><td>Header badge</td><td>The final decision (<code>ALLOW</code>, <code>BLOCK</code>, <code>REVISE</code>) in its decision color. The card's ring uses the same color.</td></tr>
+  <tr><td>One row per layer</td><td>Always all three, Envelope · LLM-judge · Learned, from <code>verdict.layers</code>. <b>Never</b> only the final decision.</td></tr>
+  <tr><td>Inactive layer</td><td>Decision <code>skipped</code> → the row at 40% opacity with "not active for this run". It is shown, never hidden, so the viewer sees which layers were in play.</td></tr>
+  <tr><td>Active layer</td><td>✔ Allow / ✘ Block / ⟲ Revise in its decision color, the layer's risk, and (for secondary layers) the τ it was compared with.</td></tr>
+  <tr><td>Reasons</td><td>One per line, prefixed └, exactly as the backend wrote them. The learned layer's reasons are its strongest per-feature contributions, so some read as raw features (e.g. <code>n_params = 1</code>, <code>param_enabled = -1</code>, which means "no enabled flag").</td></tr>
+  <tr><td>Footer</td><td><i>COMBINED · decision</i> plus its consequence: cleared for execution / never reached executor / returned to agent for revision.</td></tr>
+</table>
+<div class="callout warn">
+  <div class="callout-title">How to explain Fig. 12 in one sentence</div>
+  <p>"The deterministic gate can only check structure. <code>cordon_node</code> is a legal action with
+  valid parameters, so the envelope passes it. The learned layer sees that nothing in the telemetry
+  points at that node, scores it as destructive, and blocks it before it reaches the executor. Run
+  the same incident ungated and the cordon executes."</p>
+</div>
+
+<!-- ============================================================================================ -->
+<h1 id="c9"><span class="num">9</span>The API Layer</h1>
+<p><code>src/api/client.ts</code> is a thin wrapper. <code>apiGet</code> and <code>apiPost</code>
+prefix <code>/api</code>, send and parse JSON, and turn a non-2xx response into an
+<code>ApiError</code> carrying the HTTP status. <code>sseUrl</code> builds stream URLs. Every hook is
+built on these three functions.</p>
+<table>
+  <caption><b>Table 9.</b> Hooks, the endpoints they call and their cache keys.</caption>
+  <tr><th style="width:23%">Hook (file)</th><th style="width:37%">Endpoint</th><th>Kind / key</th></tr>
+  <tr><td><code>useIncidents</code> (incidents.ts)</td><td><code>GET /api/incidents</code></td><td>Query <code>["incidents"]</code></td></tr>
+  <tr><td><code>useIncident(id)</code></td><td><code>GET /api/incidents/{id}</code></td><td>Query <code>["incident", id]</code>, runs only when <code>id</code> is set</td></tr>
+  <tr><td><code>useStartRun</code> (runs.ts)</td><td><code>POST /api/runs</code></td><td>Mutation → <code>{run_id}</code></td></tr>
+  <tr><td><code>useRunStream(runId)</code></td><td><code>GET /api/runs/{id}/stream</code> (SSE)</td><td>EventSource; invalidates <code>["runs"]</code> on final</td></tr>
+  <tr><td><code>useRuns</code> / <code>useRun(id)</code></td><td><code>GET /api/runs</code>, <code>/api/runs/{id}</code></td><td>Query <code>["runs"]</code>, <code>["run", id]</code></td></tr>
+  <tr><td><code>usePareto</code> (experiments.ts)</td><td><code>GET /api/experiments/pareto</code></td><td>Query <code>["pareto", variant]</code></td></tr>
+  <tr><td><code>useMetrics</code></td><td><code>GET /api/experiments/metrics</code></td><td>Query <code>["metrics"]</code></td></tr>
+  <tr><td><code>usePreventionPartition</code></td><td><code>GET /api/experiments/prevention_partition</code></td><td>Query <code>["prevention-partition"]</code></td></tr>
+  <tr><td><code>useAblations</code></td><td><code>GET /api/experiments/ablations</code></td><td>Query <code>["ablations"]</code></td></tr>
+</table>
+<p>The backend also refuses some requests, and the console surfaces the reason:</p>
+<ul>
+  <li><b>403</b>: a real (non-dry-run) start when the gateway's config does not allow execution;</li>
+  <li><b>409</b>: the learned variant requested but no trained model exists (<code>make train</code>);</li>
+  <li><b>404</b>: an unknown incident or run.</li>
+</ul>
+
+<!-- ============================================================================================ -->
+<h1 id="c10"><span class="num">10</span>Types Shared with the Backend</h1>
+<figure>
+<svg viewBox="0 0 720 94" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif" font-size="9">
+  <defs><marker id="f5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3d3c39"/></marker></defs>
+  <rect x="6" y="22" width="130" height="50" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="71" y="42" text-anchor="middle" font-weight="700">Pydantic models</text>
+  <text x="71" y="57" text-anchor="middle" font-size="8">src/sentinel/schemas/*.py</text>
+  <rect x="164" y="22" width="130" height="50" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="229" y="42" text-anchor="middle" font-weight="700">export_schemas.py</text>
+  <text x="229" y="57" text-anchor="middle" font-size="8">→ JSON Schema</text>
+  <rect x="322" y="22" width="130" height="50" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="387" y="42" text-anchor="middle" font-weight="700">gen-types.mjs</text>
+  <text x="387" y="57" text-anchor="middle" font-size="8">json-schema-to-typescript</text>
+  <rect x="480" y="22" width="110" height="50" rx="5" fill="#eef4fc" stroke="#2a78d6"/>
+  <text x="535" y="42" text-anchor="middle" font-weight="700">src/api/types.ts</text>
+  <text x="535" y="57" text-anchor="middle" font-size="8" fill="#d03b3b">GENERATED</text>
+  <rect x="618" y="22" width="96" height="50" rx="5" fill="#fff" stroke="#3d3c39"/>
+  <text x="666" y="42" text-anchor="middle" font-weight="700">components</text>
+  <text x="666" y="57" text-anchor="middle" font-size="8">tsc checks usage</text>
+  <line x1="136" y1="47" x2="162" y2="47" stroke="#3d3c39" marker-end="url(#f5)"/>
+  <line x1="294" y1="47" x2="320" y2="47" stroke="#3d3c39" marker-end="url(#f5)"/>
+  <line x1="452" y1="47" x2="478" y2="47" stroke="#3d3c39" marker-end="url(#f5)"/>
+  <line x1="590" y1="47" x2="616" y2="47" stroke="#3d3c39" marker-end="url(#f5)"/>
+  <text x="6" y="14" font-size="8.5" fill="#3d3c39">make types (repo root) or npm run types (frontend/)</text>
+</svg>
+<figcaption><b>Figure 13.</b> One source of truth for data shapes: the backend's Pydantic models.</figcaption>
+</figure>
+<p><code>types.ts</code> defines <code>IncidentContext</code>, <code>Telemetry</code>,
+<code>ProposedAction</code>, <code>Verdict</code>, <code>LayerVerdict</code>,
+<code>StepRecord</code> and <code>RunRecord</code> exactly as the backend does. <b>Never edit it by
+hand.</b> When the UI needs a new field:</p>
+<ol>
+  <li>add it to the Pydantic model;</li>
+  <li>run <code>make types</code>;</li>
+  <li>let the TypeScript compiler show every place that must handle it.</li>
+</ol>
+<p>Fields with defaults in Pydantic become optional (<code>?</code>) in TypeScript, which is why
+components write <code>verdict.layers ?? []</code>. A few response shapes are not Pydantic models,
+because they are tables computed by the evaluation report: <code>IncidentSummary</code>,
+<code>ParetoPoint</code>, <code>MetricsRow</code>, <code>PreventionRow</code> and
+<code>AblationRow</code>. Those are typed by hand in <code>mock/fixtures.ts</code> and must be kept in
+line with <code>gateway/api.py</code>.</p>
+
+<!-- ============================================================================================ -->
+<h1 id="c11"><span class="num">11</span>Design Rules</h1>
+
+<h2 id="c11-1"><span class="num">11.1</span>Color means decision, everywhere</h2>
+<p>Four hues are reserved for the four outcomes. They appear on pills, verdict bands, timeline dots,
+status dots and Grafana panels. The tokens are defined in <code>tailwind.config.ts</code> and mapped
+to class names in <code>lib/decisionColors.ts</code>. Components import those class names and
+<b>never</b> hard-code an allow or block color.</p>
+<table>
+  <caption><b>Table 10.</b> Decision tokens (dark console theme).</caption>
+  <tr><th style="width:16%">Decision</th><th style="width:22%">Token</th><th style="width:14%">Hex</th><th>Used for</th></tr>
+  <tr><td><span style="display:inline-block;width:9pt;height:9pt;background:#34D399;border-radius:2pt;vertical-align:-1pt"></span> allow</td><td><code>decision-allow</code></td><td class="mono">#34D399</td><td>allowed or resolved; "no" on unsafe execution</td></tr>
+  <tr><td><span style="display:inline-block;width:9pt;height:9pt;background:#F87171;border-radius:2pt;vertical-align:-1pt"></span> block</td><td><code>decision-block</code></td><td class="mono">#F87171</td><td>blocked, unresolved, FATAL/ERROR log lines, alerting topology nodes</td></tr>
+  <tr><td><span style="display:inline-block;width:9pt;height:9pt;background:#FBBF24;border-radius:2pt;vertical-align:-1pt"></span> revise</td><td><code>decision-revise</code></td><td class="mono">#FBBF24</td><td>revise; queued status</td></tr>
+  <tr><td><span style="display:inline-block;width:9pt;height:9pt;background:#A78BFA;border-radius:2pt;vertical-align:-1pt"></span> escalate</td><td><code>decision-escalate</code></td><td class="mono">#A78BFA</td><td>escalated to a human</td></tr>
+  <tr><td><span style="display:inline-block;width:9pt;height:9pt;background:#22D3EE;border-radius:2pt;vertical-align:-1pt"></span> accent</td><td><code>accent</code></td><td class="mono">#22D3EE</td><td>interactive elements only (buttons, active tab, slider): never a decision</td></tr>
+</table>
+
+<h2 id="c11-2"><span class="num">11.2</span>Charts have their own palette</h2>
+<p>Chart series are identities (which verifier), not decisions, so they use a <b>separate</b>
+categorical palette. Each palette was checked with the dataviz skill's color validator against the
+console's actual dark card surface: lightness band, chroma, separation under color-vision
+deficiency, normal-vision separation and contrast.</p>
+<ul>
+  <li><b>ParetoChart</b>: envelope <span class="mono">#3987e5</span>, learned
+  <span class="mono">#d95926</span>, judge <span class="mono">#199e70</span>, keyed by variant.</li>
+  <li><b>PreventionPartition</b>, stacked in this order: missed <span class="mono">#d55181</span>
+  (magenta), caught by envelope <span class="mono">#3987e5</span>, caught by secondary
+  <span class="mono">#d95926</span>.
+    <ul>
+      <li>An earlier version drew "missed" in green, which read as "good".</li>
+      <li>Red, amber, emerald and violet are reserved for decisions, so they were not options.</li>
+      <li>Magenta passes the validator only when it is not next to orange. Hence its position first,
+      against the baseline.</li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="c11-3"><span class="num">11.3</span>Typography, density and motion</h2>
+<ul>
+  <li><b>Monospace for anything a machine emitted</b>: IDs, action types, parameters, log lines, risk
+  scores, durations. Everything else uses the sans-serif UI font.</li>
+  <li><b>Dense and dark</b>, like an on-call tool: compact tables, small uppercase card titles, and
+  space reserved for the two things people read closely (the VerdictCard and the RunSummary).</li>
+  <li><b>Minimal motion</b>:
+    <ul>
+      <li>new timeline steps fade in (0.2 s);</li>
+      <li>the in-progress dot pulses;</li>
+      <li>chart animation is off, so a screenshot never catches a half-drawn bar;</li>
+      <li>everything is disabled under <code>prefers-reduced-motion</code>.</li>
+    </ul>
+  </li>
+  <li><b>Accessibility</b>: a visible focus ring (accent), text labels beside every colored dot or
+  pill, and hover titles on verifier buttons.</li>
+  <li><b>No browser storage.</b> UI state lives in memory (Zustand); nothing goes to
+  <code>localStorage</code>.</li>
+</ul>
+
+<!-- ============================================================================================ -->
+<h1 id="c12"><span class="num">12</span>Recipes: Changing the Console</h1>
+
+<h3 id="c12-1"><span class="num">12.1</span>Show a new backend field</h3>
+<ol>
+  <li>Add the field to the Pydantic model in <code>src/sentinel/schemas/</code>.</li>
+  <li>Run <code>make types</code>. <code>types.ts</code> now has it.</li>
+  <li>Render it in the component, using <code>lib/format.ts</code> for numbers and monospace if it is
+  machine output.</li>
+  <li>If mock mode should show it, add it to <code>mock/fixtures.ts</code>.</li>
+  <li>Run <code>npm run typecheck</code>, <code>npm run lint</code> and <code>make e2e</code>.</li>
+</ol>
+
+<h3 id="c12-2"><span class="num">12.2</span>Add an endpoint and a hook</h3>
+<ol>
+  <li>Add the route in <code>src/sentinel/gateway/api.py</code>, reusing the schemas.</li>
+  <li>Add a hook in <code>src/api/</code> with <code>useQuery</code> (reads) or
+  <code>useMutation</code> (writes), and a distinct query key.</li>
+  <li>Add a matching MSW handler in <code>mock/handlers.ts</code>, so mock mode keeps working with
+  the backend down. This is required.</li>
+</ol>
+
+<h3 id="c12-3"><span class="num">12.3</span>Add a screen</h3>
+<ol>
+  <li>Create <code>src/routes/XRoute.tsx</code>: fetch with hooks, compose features.</li>
+  <li>Register it in <code>App.tsx</code>: a <code>&lt;Route&gt;</code>, plus a <code>NAV_ITEMS</code>
+  entry if it belongs in the header.</li>
+  <li>Put real components under <code>src/features/x/</code>, built from
+  <code>features/shared/</code> (Card, Tag, StatusDot, CodeBlock).</li>
+</ol>
+
+<h3 id="c12-4"><span class="num">12.4</span>Change a color</h3>
+<ul>
+  <li><b>Decision colors</b>: change the token in <code>tailwind.config.ts</code>. Every pill, band
+  and dot follows.</li>
+  <li><b>Chart colors</b>: re-run the palette validator against the console surface before changing
+  any hex, and keep colors keyed by entity.</li>
+</ul>
+
+<h3 id="c12-5"><span class="num">12.5</span>Refresh the numbers shown in mock mode</h3>
+<p>Run <code>make eval</code>, then <code>make mock-results</code>. The second command rewrites
+<code>mock/experiments.json</code> from the new results.</p>
+
+<!-- ============================================================================================ -->
+<h1 id="c13"><span class="num">13</span>Commands and Troubleshooting</h1>
+<table>
+  <caption><b>Table 11.</b> Frontend commands (run in <code>frontend/</code> unless marked).</caption>
+  <tr><th style="width:32%">Command</th><th>Does</th></tr>
+  <tr><td><code>npm install</code></td><td>Install dependencies (first time only)</td></tr>
+  <tr><td><code>npm run dev</code></td><td>Mock mode at :5173</td></tr>
+  <tr><td><code>npm run dev:live</code></td><td>Live mode at :5173 (needs the gateway on :8080)</td></tr>
+  <tr><td><code>npm run typecheck</code> · <code>npm run lint</code></td><td>TypeScript check · ESLint with zero warnings allowed</td></tr>
+  <tr><td><code>npm run build</code></td><td>Production build into <code>dist/</code></td></tr>
+  <tr><td><code>make types</code> (repo root)</td><td>Regenerate <code>src/api/types.ts</code></td></tr>
+  <tr><td><code>make demo-local</code> · <code>make demo</code> (root)</td><td>Gateway + live console · full Docker stack</td></tr>
+  <tr><td><code>make e2e</code> (root)</td><td>Headless-browser rehearsal of the demo; fails on any console error</td></tr>
+</table>
+<table>
+  <caption><b>Table 12.</b> Common problems.</caption>
+  <tr><th style="width:34%">Symptom</th><th>Cause and fix</th></tr>
+  <tr><td>Header says "mock mode" when you expected live</td><td>Started with <code>npm run dev</code>. Use <code>npm run dev:live</code>, or check <code>VITE_USE_MOCKS</code>.</td></tr>
+  <tr><td>Live mode: incidents fail to load</td><td>The gateway is not running on :8080 (<code>make gateway</code>), or <code>VITE_API_TARGET</code> points elsewhere.</td></tr>
+  <tr><td>Every action is blocked with "judge unavailable"</td><td>LLM-judge or Combined chosen without an Anthropic key. The judge fails closed. Use Learned offline.</td></tr>
+  <tr><td>Start run returns 409</td><td>No trained learned-verifier model. Run <code>make train</code>.</td></tr>
+  <tr><td>Start run returns 403 with dry-run off</td><td>The gateway config doesn't allow real execution. Use <code>SENTINEL_CONFIG=config/offline_eval.yaml</code>, as <code>make demo-local</code> does.</td></tr>
+  <tr><td>Observability is empty</td><td>Grafana runs only in the Docker stack (<code>make demo</code>).</td></tr>
+  <tr><td>Type errors after pulling backend changes</td><td>A schema changed. Run <code>make types</code>.</td></tr>
+  <tr><td>Results says "No evaluation results"</td><td>The store has no evaluation yet. Run <code>make eval</code>.</td></tr>
+</table>
+
+<!-- ============================================================================================ -->
+<h1 id="c14"><span class="num">14</span>Questions to Expect in a Viva</h1>
+<table>
+  <caption><b>Table 13.</b> Likely questions and short answers.</caption>
+  <tr><th style="width:34%">Question</th><th>Answer</th></tr>
+  <tr><td>Why show every layer instead of just the final decision?</td><td>The contribution <i>is</i> the layering. Showing the envelope passing an action and the learned layer blocking it is the evidence that each layer earns its place.</td></tr>
+  <tr><td>How does the live trace work?</td><td>Server-Sent Events. The gateway runs the orchestrator in a background thread and pushes each <code>StepRecord</code> as it is produced; the browser's <code>EventSource</code> appends it to the timeline. No polling.</td></tr>
+  <tr><td>Can the demo run without the backend?</td><td>Yes. In mock mode MSW intercepts <code>/api</code> in the browser and replays canned runs over real SSE. The results shown are a measured snapshot of the evaluation.</td></tr>
+  <tr><td>How do you keep frontend and backend in sync?</td><td>The TypeScript types are generated from the Pydantic models (<code>make types</code>). A schema change fails the TypeScript build instead of failing silently at runtime.</td></tr>
+  <tr><td>Why TanStack Query <i>and</i> Zustand?</td><td>They hold different things. Query caches server data with refetch and retry; Zustand holds a few UI values shared across screens, such as τ in both Run Controls and the Pareto marker.</td></tr>
+  <tr><td>Why is "missed" magenta in the partition chart?</td><td>Green read as "good"; red, amber, emerald and violet are reserved for decisions. Magenta passed the color-vision validator only when placed away from orange, so it sits first, against the baseline.</td></tr>
+  <tr><td>Can the console execute something unsafe?</td><td>No. It only <i>requests</i> runs. The gateway refuses real execution unless its config allows it, the executor requires an <code>allow</code> verdict, and human approve/reject decisions are recorded for audit but never execute anything.</td></tr>
+  <tr><td>How do you know the demo works?</td><td><code>make e2e</code> drives a headless browser through the demo against the real gateway: happy path, blocked cordon, ungated execution, results. It fails on any browser console error.</td></tr>
+</table>
+
+<!-- ============================================================================================ -->
+<h1 id="cA"><span class="num">A</span>File Reference</h1>
+<table>
+  <caption><b>Table 14.</b> Every source file in <code>frontend/src</code> and what it is responsible for.</caption>
+  <tr><th style="width:36%">File</th><th>Responsibility</th></tr>
+  <tr><td><code>main.tsx</code></td><td>Boot: start MSW in mock mode, create the QueryClient, render App</td></tr>
+  <tr><td><code>App.tsx</code></td><td>Header, navigation, mode indicator, route table</td></tr>
+  <tr><td><code>routes/QueueRoute.tsx</code></td><td>Incident list screen</td></tr>
+  <tr><td><code>routes/TriageRoute.tsx</code></td><td>Incident screen; owns <code>runId</code>; wires <code>useRunStream</code></td></tr>
+  <tr><td><code>routes/ResultsRoute.tsx</code></td><td>Results screen; data source line; empty state</td></tr>
+  <tr><td><code>routes/ObservabilityRoute.tsx</code></td><td>Grafana iframe, or an explanation if it is not configured</td></tr>
+  <tr><td><code>features/queue/IncidentTable.tsx</code></td><td>Clickable incident table with tags and status dots</td></tr>
+  <tr><td><code>features/triage/TelemetryPanel.tsx</code></td><td>Logs, metrics, traces and alerts tabs</td></tr>
+  <tr><td><code>features/triage/TopologyGraph.tsx</code></td><td>React Flow service graph; alerting services in red</td></tr>
+  <tr><td><code>features/triage/DiagnosisCard.tsx</code></td><td>Latest proposal's rationale and predicted effect</td></tr>
+  <tr><td><code>features/triage/RunControls.tsx</code></td><td>Verifier, τ, dry-run; Start run mutation</td></tr>
+  <tr><td><code>features/triage/LoopTimeline.tsx</code></td><td>Streaming step list, outcome pills, RunSummary</td></tr>
+  <tr><td><code>features/triage/ActionCard.tsx</code></td><td>One proposed action: type, target, params</td></tr>
+  <tr><td><code>features/triage/VerdictCard.tsx</code></td><td>Layered verdict (Chapter 8)</td></tr>
+  <tr><td><code>features/results/ParetoChart.tsx</code></td><td>Pareto lines keyed by variant, τ marker</td></tr>
+  <tr><td><code>features/results/PreventionPartition.tsx</code></td><td>Stacked partition bars (validated palette)</td></tr>
+  <tr><td><code>features/results/MetricsGrid.tsx</code></td><td>Baseline metrics table</td></tr>
+  <tr><td><code>features/results/AblationTable.tsx</code></td><td>Grouped ablation rows</td></tr>
+  <tr><td><code>features/shared/*</code></td><td>Card, Tag, StatusDot, CodeBlock, KeyValue building blocks</td></tr>
+  <tr><td><code>api/client.ts</code></td><td><code>apiGet</code>, <code>apiPost</code>, <code>sseUrl</code>, <code>ApiError</code></td></tr>
+  <tr><td><code>api/incidents.ts · runs.ts · experiments.ts</code></td><td>Hooks (Tab. 9); <code>useRunStream</code> lives in runs.ts</td></tr>
+  <tr><td><code>api/types.ts</code></td><td>GENERATED shared types: never edit</td></tr>
+  <tr><td><code>store/ui.ts</code></td><td>Zustand UI store and the <code>VerifierChoice</code> type</td></tr>
+  <tr><td><code>lib/decisionColors.ts</code></td><td>Decision → classes and labels; step-state labels</td></tr>
+  <tr><td><code>lib/format.ts</code></td><td>Formatting of durations, tokens, USD, risk and percentages</td></tr>
+  <tr><td><code>mock/handlers.ts</code></td><td>MSW handlers for every endpoint, including simulated SSE</td></tr>
+  <tr><td><code>mock/fixtures.ts</code> · <code>experiments.json</code></td><td>Mock incidents and canned runs · measured results snapshot</td></tr>
+  <tr><td><code>mock/browser.ts</code> · <code>server.ts</code></td><td>MSW worker (browser) · MSW server (for future Node tests)</td></tr>
+  <tr><td><code>styles/index.css</code></td><td>Tailwind layers, scrollbars, focus ring, reduced motion</td></tr>
+</table>
+
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{title}}</title>
+<link rel="stylesheet" href="report.css">
+</head>
+<body>
+
+<section class="titlepage">
+  <div>
+    <div class="kicker">sentinel-remediate · triage console</div>
+    <div class="title">A Guide to the Frontend</div>
+    <div class="subtitle">How the sentinel-console works, end to end: screens, data flow, live streaming,
+    mock and live modes, the design rules, and how to change it</div>
+    <div class="codename">frontend/ · React + TypeScript</div>
+  </div>
+  <div>
+    <div class="rule"></div>
+    <div class="meta">
+      <div>About {{loc_frontend}} lines of TypeScript · {{n_components}} feature components · 4 screens</div>
+      <div style="margin-top:3mm">Screenshots taken from the console running in live mode against the real gateway.</div>
+    </div>
+  </div>
+  <div class="foot">{{date}} &nbsp;·&nbsp; generated from repository commit <span class="mono">{{commit}}</span></div>
+</section>
+
+<section class="abstract">
+  <h1>How to read this guide</h1>
+  <p>The <b>sentinel-console</b> is the part of the project people actually see. It shows an
+  incident's evidence, lets you start a remediation run, and streams the agent → verifier → executor
+  loop live. Its centrepiece is the <b>layered verdict</b>: every verification layer's decision is
+  shown, not just the final one. It also presents the evaluation results.</p>
+  <p>The guide builds up in three passes:</p>
+  <ul>
+    <li><b>Chapters 1–5: what the console is and how it is put together.</b> The stack, the folders,
+    where each piece of state lives, and how the same code runs against fake data (mock mode) or the
+    real backend (live mode).</li>
+    <li><b>Chapters 6–8: what happens on screen and why.</b> Every screen, then the live run step by
+    step, then the VerdictCard in detail.</li>
+    <li><b>Chapters 9–14: working with the code.</b> The API layer, the generated types, the design
+    rules, recipes for common changes, troubleshooting, and questions to expect in a viva.</li>
+  </ul>
+  <p>File names are given as <code>src/…</code>, relative to <code>frontend/</code>. Each concept
+  links to the file where it lives, so you can read the code alongside.</p>
+</section>
+
+<section class="toc">
+  <h1>Contents</h1>
+  {{toc}}
+  <h2>List of figures</h2>
+  {{lof}}
+  <h2>List of tables</h2>
+  {{lot}}
+</section>
+
+</body>
+</html>

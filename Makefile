@@ -1,4 +1,4 @@
-.PHONY: setup test offline agent train review run eval report demo demo-local gateway e2e report-pdf mock-results demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
+.PHONY: setup test offline agent train review run eval report demo demo-local gateway e2e report-pdf frontend-guide mock-results demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
 
 setup:
 	pip install -e ".[dev]"
@@ -69,6 +69,11 @@ e2e:
 # and `make e2e` screenshots. Title-page details: docs/report/report_meta.yaml.
 report-pdf:
 	python scripts/build_report.py
+
+# The frontend guide (docs/frontend_guide.pdf). CAPTURE=1 refreshes its screenshots from the running
+# console first (needs `make demo-local` up).
+frontend-guide:
+	python scripts/build_frontend_guide.py $(if $(CAPTURE),--capture,)
 
 # Snapshot `make eval`'s results into the console's mock layer (frontend/src/mock/experiments.json).
 mock-results:

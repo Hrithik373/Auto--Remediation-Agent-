@@ -30,6 +30,7 @@ data/
 
 # Intermediate report renders (scripts/build_report.py); the final PDF in docs/ is committed.
 docs/report/build/
+docs/frontend_guide/build/
 
 # Run store / artifacts
 *.duckdb
