@@ -1,4 +1,4 @@
-.PHONY: setup test offline agent train review run eval report demo demo-local gateway e2e report-pdf frontend-guide mock-results demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
+.PHONY: setup test offline agent train review run eval report demo demo-local gateway e2e report-pdf frontend-guide blueprint mock-results demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
 
 setup:
 	pip install -e ".[dev]"
@@ -74,6 +74,11 @@ report-pdf:
 # console first (needs `make demo-local` up).
 frontend-guide:
 	python scripts/build_frontend_guide.py $(if $(CAPTURE),--capture,)
+
+# The project blueprint (docs/project_blueprint.pdf): every file explained simply. Fails if any tracked
+# file lacks a description -- add one in scripts/build_blueprint.py when you add a file.
+blueprint:
+	python scripts/build_blueprint.py
 
 # Snapshot `make eval`'s results into the console's mock layer (frontend/src/mock/experiments.json).
 mock-results:

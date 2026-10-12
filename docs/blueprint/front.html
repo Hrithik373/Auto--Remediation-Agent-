@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Project Blueprint</title>
+<link rel="stylesheet" href="report.css">
+</head>
+<body>
+
+<section class="titlepage">
+  <div>
+    <div class="kicker">sentinel-remediate</div>
+    <div class="title">Project Blueprint</div>
+    <div class="subtitle">What every file in the project does, in plain words</div>
+    <div class="codename">{{n_files}} files · {{n_key}} marked ★ as the ones to read first</div>
+  </div>
+  <div>
+    <div class="rule"></div>
+    <div class="meta">
+      <div>Every file in the repository is described in this document. The build checks this
+      automatically, and refuses to produce the PDF if any file is missing a description.</div>
+    </div>
+  </div>
+  <div class="foot">{{date}} &nbsp;·&nbsp; generated from repository commit <span class="mono">{{commit}}</span></div>
+</section>
+
+<section class="toc">
+  <h1>Contents</h1>
+  {{toc}}
+</section>
+
+</body>
+</html>

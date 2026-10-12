@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Project Blueprint</title>
+<link rel="stylesheet" href="report.css">
+</head>
+<body>
+
+<h1 class="first" id="b1"><span class="num">1</span>The Project in 60 Seconds</h1>
+<p><b>The problem.</b> AI agents can now read the logs and metrics of a broken system and suggest a
+fix. But a confident AI can suggest a harmful fix, such as switching off a healthy server. Letting it
+act alone is risky. Asking a human every time defeats the point.</p>
+<p><b>The idea.</b> Treat the AI as an <i>untrusted planner</i>: it may only <b>suggest</b>. Every
+suggestion must pass a <b>safety checker</b> (the verifier) before anything happens. The checker has
+three layers:</p>
+<ol>
+  <li>a fixed rule list, the <b>envelope</b>, which needs no AI;</li>
+  <li>an <b>AI reviewer</b>, the LLM judge;</li>
+  <li>a trained <b>machine-learning model</b> that estimates how likely the action is to cause harm.</li>
+</ol>
+<p>A threshold called <b>τ</b> (tau) decides how cautious the checker is.</p>
+<p><b>The proof.</b> The project replays 41 saved incidents thousands of times and measures how many
+harmful actions get through. With the learned layer, harmful actions reached execution in about 1%
+of runs, down from about 33% with no checker. A web console shows all of this live.</p>
+
+<figure>
+<svg viewBox="0 0 720 150" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif" font-size="10">
+  <defs><marker id="g1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3d3c39"/></marker></defs>
+  <rect x="6" y="40" width="112" height="56" rx="6" fill="#fff" stroke="#3d3c39"/>
+  <text x="62" y="62" text-anchor="middle" font-weight="700">1. Incident</text>
+  <text x="62" y="79" text-anchor="middle" font-size="8.5">logs, metrics, alerts</text>
+  <text x="62" y="90" text-anchor="middle" font-size="8.5">(fixtures/)</text>
+  <rect x="146" y="40" width="112" height="56" rx="6" fill="#fff" stroke="#3d3c39"/>
+  <text x="202" y="62" text-anchor="middle" font-weight="700">2. Agent</text>
+  <text x="202" y="79" text-anchor="middle" font-size="8.5">suggests one fix</text>
+  <text x="202" y="90" text-anchor="middle" font-size="8.5">(agent/)</text>
+  <rect x="286" y="28" width="150" height="80" rx="6" fill="#eef4fc" stroke="#2a78d6"/>
+  <text x="361" y="50" text-anchor="middle" font-weight="700">3. Safety checker</text>
+  <text x="361" y="67" text-anchor="middle" font-size="8.5">rules → AI judge / learned</text>
+  <text x="361" y="80" text-anchor="middle" font-size="8.5">allow only if safe enough</text>
+  <text x="361" y="94" text-anchor="middle" font-size="8.5">(verifier/)</text>
+  <rect x="464" y="40" width="112" height="56" rx="6" fill="#fff" stroke="#3d3c39"/>
+  <text x="520" y="62" text-anchor="middle" font-weight="700">4. Executor</text>
+  <text x="520" y="79" text-anchor="middle" font-size="8.5">applies allowed fixes</text>
+  <text x="520" y="90" text-anchor="middle" font-size="8.5">(executor/)</text>
+  <rect x="604" y="40" width="110" height="56" rx="6" fill="#fff" stroke="#3d3c39"/>
+  <text x="659" y="62" text-anchor="middle" font-weight="700">5. Saved + shown</text>
+  <text x="659" y="79" text-anchor="middle" font-size="8.5">database, scores,</text>
+  <text x="659" y="90" text-anchor="middle" font-size="8.5">web console</text>
+  <line x1="118" y1="68" x2="144" y2="68" stroke="#3d3c39" marker-end="url(#g1)"/>
+  <line x1="258" y1="68" x2="284" y2="68" stroke="#3d3c39" marker-end="url(#g1)"/>
+  <line x1="436" y1="68" x2="462" y2="68" stroke="#3d3c39" marker-end="url(#g1)"/>
+  <line x1="576" y1="68" x2="602" y2="68" stroke="#3d3c39" marker-end="url(#g1)"/>
+  <path d="M361,108 V130 H202 V98" fill="none" stroke="#eb6834" stroke-dasharray="4 3" marker-end="url(#g1)"/>
+  <text x="282" y="143" text-anchor="middle" font-size="8.5" fill="#b24f22">blocked? reasons go back to the agent, or a human is called</text>
+  <text x="6" y="16" font-size="8.5" fill="#6b6a65">The loop (orchestrator/loop.py) repeats until the incident is fixed, a human is needed, or the step limit is reached.</text>
+</svg>
+<figcaption><b>Figure 1.</b> The whole project as five steps.</figcaption>
+</figure>
+
+<h1 id="b2"><span class="num">2</span>How the Folders Fit Together</h1>
+<table>
+  <caption><b>Table 1.</b> The top-level folders.</caption>
+  <tr><th style="width:24%">Folder</th><th>In one line</th></tr>
+  <tr><td><code>src/sentinel/</code></td><td>The <b>backend</b>, written in Python: agent, safety checker, executor, loop, database, scoring and web server.</td></tr>
+  <tr><td><code>frontend/</code></td><td>The <b>web console</b>, written in React and TypeScript: the screens you click through in the demo.</td></tr>
+  <tr><td><code>config/</code></td><td><b>Settings</b> in YAML: the allow-list, thresholds, labeling rules and monitoring setup.</td></tr>
+  <tr><td><code>fixtures/incidents/</code></td><td><b>Test data</b>: 41 saved incidents, each with its answer key.</td></tr>
+  <tr><td><code>scripts/</code></td><td><b>Runnable programs</b>: demos, training, the full experiment, dataset tools, document builders.</td></tr>
+  <tr><td><code>tests/</code></td><td><b>Automatic checks</b> (about 620) that keep everything working.</td></tr>
+  <tr><td><code>docs/</code></td><td><b>Documents</b>: the architecture report, the frontend guide, this blueprint.</td></tr>
+  <tr><td><code>notebooks/</code></td><td>A Jupyter notebook for exploring the results.</td></tr>
+  <tr><td><span class="muted">not in git:</span> <code>runs/</code>, <code>data/</code>, <code>.venv/</code></td><td>Generated or downloaded: the run database, trained models, figures and screenshots (<code>runs/</code>); the 13 GB raw dataset (<code>data/</code>); the Python environment (<code>.venv/</code>). Commands recreate them.</td></tr>
+</table>
+
+<h1 id="b3"><span class="num">3</span>Words You Will See</h1>
+<table>
+  <caption><b>Table 2.</b> Glossary.</caption>
+  <tr><th style="width:22%">Word</th><th>Meaning</th></tr>
+  <tr><td><b>Incident</b></td><td>A broken-system situation to fix, stored as a JSON file.</td></tr>
+  <tr><td><b>Telemetry</b></td><td>The evidence about an incident: logs, metrics, traces, alerts and the service map (topology).</td></tr>
+  <tr><td><b>Agent</b></td><td>The part that reads the incident and suggests one action. Untrusted.</td></tr>
+  <tr><td><b>Proposed action</b></td><td>What the agent wants to do, e.g. <code>rollback_deployment</code> on <code>checkout-service</code>.</td></tr>
+  <tr><td><b>Verifier</b></td><td>The safety checker that rules on each proposed action.</td></tr>
+  <tr><td><b>Envelope</b></td><td>Layer 1 of the verifier: a fixed allow-list of action types and rules. No AI.</td></tr>
+  <tr><td><b>LLM judge</b></td><td>Layer 2a: an AI model asked whether the action is safe. Needs an API key.</td></tr>
+  <tr><td><b>Learned verifier</b></td><td>Layer 2b: a trained model that estimates the chance an action is destructive.</td></tr>
+  <tr><td><b>Verdict</b></td><td>The ruling: <i>allow</i> (may run), <i>block</i> (stopped), or <i>revise</i> (try again).</td></tr>
+  <tr><td><b>τ (tau)</b></td><td>The risk threshold. An action runs only if its risk is below τ. Lower τ means more cautious.</td></tr>
+  <tr><td><b>Executor</b></td><td>The only part allowed to apply an action, and only after an <i>allow</i>.</td></tr>
+  <tr><td><b>Dry run</b></td><td>Plan the action but don't apply it.</td></tr>
+  <tr><td><b>Orchestrator / loop</b></td><td>Runs propose → verify → act again and again until the incident is fixed.</td></tr>
+  <tr><td><b>Oracle / answer key</b></td><td>The stored truth about which actions fix an incident and which are harmful. Used only for scoring.</td></tr>
+  <tr><td><b>Label</b></td><td>The answer key's verdict on one action: <i>correct</i>, <i>ineffective</i>, <i>destructive</i> or <i>out_of_envelope</i>.</td></tr>
+  <tr><td><b>Provenance</b></td><td>Where a label came from: hand-built, mapped from ITBench, generated by a rule, or reviewed by a human.</td></tr>
+  <tr><td><b>ITBench-Lite</b></td><td>IBM's public dataset of real fault scenarios. 35 of the incidents come from it.</td></tr>
+  <tr><td><b>Simulated agent</b></td><td>A stand-in agent with no AI, used so tests and experiments run offline and for free.</td></tr>
+  <tr><td><b>DuckDB</b></td><td>A small file-based database where every run is saved.</td></tr>
+  <tr><td><b>Gateway</b></td><td>The backend web server the console talks to.</td></tr>
+  <tr><td><b>SSE (live stream)</b></td><td>How the server pushes each loop step to the browser the moment it happens.</td></tr>
+  <tr><td><b>Mock mode / live mode</b></td><td>The console running on built-in fake data, or against the real backend.</td></tr>
+  <tr><td><b>Schema / Pydantic</b></td><td>The defined shape of each piece of data. The frontend's types are generated from it.</td></tr>
+</table>
+
+{{chapters}}
+
+<h1 id="bA"><span class="num">A</span>Where to Look When You Want To…</h1>
+<table>
+  <caption><b>Table 3.</b> Common tasks and the files to open.</caption>
+  <tr><th style="width:38%">I want to…</th><th>Open</th></tr>
+  <tr><td>change which actions are allowed</td><td><code>config/action_envelope.yaml</code></td></tr>
+  <tr><td>change τ, the agent or the verifier</td><td><code>config/default.yaml</code>, or the console's Run Controls</td></tr>
+  <tr><td>understand one loop run</td><td><code>src/sentinel/orchestrator/loop.py</code></td></tr>
+  <tr><td>see how the final verdict is decided</td><td><code>src/sentinel/verifier/policy.py</code></td></tr>
+  <tr><td>change how a score is calculated</td><td><code>src/sentinel/eval/metrics.py</code></td></tr>
+  <tr><td>add a field to the data</td><td><code>src/sentinel/schemas/</code>, then <code>make types</code></td></tr>
+  <tr><td>add or edit an incident</td><td><code>fixtures/incidents/</code>, then <code>make test</code></td></tr>
+  <tr><td>change a console screen</td><td><code>frontend/src/routes/</code> and <code>frontend/src/features/</code></td></tr>
+  <tr><td>change console colors</td><td><code>frontend/tailwind.config.ts</code> and <code>frontend/src/lib/decisionColors.ts</code></td></tr>
+  <tr><td>add a console API endpoint</td><td><code>src/sentinel/gateway/api.py</code>, plus a hook in <code>frontend/src/api/</code> and a mock in <code>frontend/src/mock/handlers.ts</code></td></tr>
+  <tr><td>rerun every experiment</td><td><code>make eval</code> (<code>scripts/run_eval.py</code>)</td></tr>
+  <tr><td>update the PDFs</td><td><code>make report-pdf</code>, <code>make frontend-guide</code>, <code>make blueprint</code></td></tr>
+  <tr><td>put my name on the report</td><td><code>docs/report/report_meta.yaml</code></td></tr>
+</table>
+
+</body>
+</html>
