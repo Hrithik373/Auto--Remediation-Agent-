@@ -8,11 +8,11 @@ from sentinel.config import config_hash, load_config
 from sentinel.gateway import app as gateway_app
 from sentinel.gateway.clients import CachingLLMClient, LLMResponse, ScriptedLLMClient, UsageLedger, price_usd
 
-PRICING = {"claude-sonnet-5": {"input": 2.0, "output": 10.0}}
+PRICING = {"paid-model": {"input": 2.0, "output": 10.0}}
 
 
 def test_price_usd_known_and_unknown_models():
-    assert price_usd("claude-sonnet-5", 1_000_000, 100_000, PRICING) == (3.0, True)
+    assert price_usd("paid-model", 1_000_000, 100_000, PRICING) == (3.0, True)
     assert price_usd("mystery-model", 10, 10, PRICING) == (0.0, False)
 
 

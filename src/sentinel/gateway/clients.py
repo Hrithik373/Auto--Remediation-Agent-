@@ -123,6 +123,84 @@ class AnthropicLLMClient(LLMClient):
         )
 
 
+class OpenAICompatibleLLMClient(LLMClient):
+    """Any OpenAI-style /chat/completions endpoint: Groq (free tier), Ollama (local), OpenRouter, vLLM.
+
+    stdlib only (urllib), so it adds no dependency. Rate limits (HTTP 429) are retried after the
+    server's retry-after, up to `max_retries`; anything else raises, and the LLM judge turns that into
+    a fail-closed BLOCK.
+    """
+
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        api_key: str | None = None,
+        pricing: dict | None = None,
+        timeout_s: float = 60,
+        max_retries: int = 3,
+        max_wait_s: float = 30,
+    ) -> None:
+        self._url = base_url.rstrip("/") + "/chat/completions"
+        self._api_key = api_key
+        self._pricing = pricing or {}
+        self._timeout = timeout_s
+        self._max_retries = max_retries
+        self._max_wait = max_wait_s
+
+    def _post(self, body: dict) -> dict:
+        import time
+        import urllib.error
+        import urllib.request
+
+        headers = {"Content-Type": "application/json", "User-Agent": "sentinel-remediate/1.0"}
+        if self._api_key:
+            headers["Authorization"] = f"Bearer {self._api_key}"
+        data = json.dumps(body).encode("utf-8")
+        for attempt in range(self._max_retries + 1):
+            request = urllib.request.Request(self._url, data=data, headers=headers, method="POST")
+            try:
+                with urllib.request.urlopen(request, timeout=self._timeout) as resp:
+                    return json.loads(resp.read().decode("utf-8"))
+            except urllib.error.HTTPError as exc:
+                detail = exc.read().decode("utf-8", "replace")[:300]
+                if exc.code != 429 or attempt == self._max_retries:
+                    raise RuntimeError(f"HTTP {exc.code} from {self._url}: {detail}") from exc
+                wait = _retry_after_s(exc.headers.get("retry-after"), default=2.0 * (attempt + 1))
+                time.sleep(min(wait, self._max_wait))
+        raise AssertionError("unreachable")
+
+    def complete(self, *, system: str, messages: list[dict], model: str, max_tokens: int) -> LLMResponse:
+        body = {
+            "model": model,
+            "max_tokens": max_tokens,
+            "messages": [{"role": "system", "content": system}, *messages],
+        }
+        data = self._post(body)
+        choice = (data.get("choices") or [{}])[0]
+        text = (choice.get("message") or {}).get("content") or ""
+        usage = data.get("usage") or {}
+        input_tokens, output_tokens = int(usage.get("prompt_tokens", 0)), int(
+            usage.get("completion_tokens", 0)
+        )
+        cost, known = price_usd(model, input_tokens, output_tokens, self._pricing)
+        return LLMResponse(
+            text=text,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cost_usd=cost,
+            model=model,
+            cost_known=known,
+        )
+
+
+def _retry_after_s(header: str | None, *, default: float) -> float:
+    try:
+        return max(0.0, float(header)) if header else default
+    except ValueError:
+        return default
+
+
 class ScriptedLLMClient(LLMClient):
     """Returns canned texts in order; token counts are estimated (~4 chars/token). Records every
     request in `.requests` so tests can assert what the agent actually sent."""
@@ -176,11 +254,30 @@ class CachingLLMClient(LLMClient):
         return response
 
 
-def build_llm_client(config: dict, *, cache: bool = True) -> LLMClient:
-    """The configured real client, behind the disk cache unless disabled."""
+def build_provider_client(config: dict, provider: str | None) -> LLMClient:
+    """The raw client for a named provider in config `llm_providers` (default: anthropic)."""
+    import os
+
+    pricing = config.get("pricing_usd_per_mtok", {})
+    name = provider or "anthropic"
+    spec = config.get("llm_providers", {}).get(name, {"kind": "anthropic"} if name == "anthropic" else None)
+    if spec is None:
+        raise ValueError(f"unknown LLM provider {name!r}; define it under llm_providers in the config")
+    if spec["kind"] == "anthropic":
+        return AnthropicLLMClient(pricing=pricing)
+    if spec["kind"] == "openai_compatible":
+        key_env = spec.get("api_key_env")
+        return OpenAICompatibleLLMClient(
+            base_url=spec["base_url"], api_key=os.environ.get(key_env) if key_env else None, pricing=pricing
+        )
+    raise ValueError(f"LLM provider {name!r} has unknown kind {spec['kind']!r}")
+
+
+def build_llm_client(config: dict, *, provider: str | None = None, cache: bool = True) -> LLMClient:
+    """The configured real client for `provider`, behind the disk cache unless disabled."""
     from sentinel.config import resolve_path
 
-    client: LLMClient = AnthropicLLMClient(pricing=config.get("pricing_usd_per_mtok", {}))
+    client: LLMClient = build_provider_client(config, provider)
     cache_dir = config.get("agent", {}).get("llm_cache_dir")
     if cache and cache_dir:
         client = CachingLLMClient(client, resolve_path(cache_dir))

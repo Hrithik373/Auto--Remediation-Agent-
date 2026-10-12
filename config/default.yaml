@@ -6,21 +6,27 @@ env:
   fixtures_dir: fixtures/incidents
 
 models:
-  diagnosis_agent: claude-sonnet-5     # Phase P1
-  llm_judge: claude-sonnet-5           # Phase P2
+  diagnosis_agent: qwen/qwen3.8-27b    # Phase P1 -- free via Groq
+  diagnosis_agent_provider: groq
+  llm_judge: qwen/qwen3.8-27b          # Phase P2 -- free via Groq
+  llm_judge_provider: groq
   max_tokens_per_call: 4096
 
-# USD per 1M tokens (Anthropic first-party API rates, cached 2026-09-25). Used by
+# Where each provider named above lives. openai_compatible = any OpenAI-style /chat/completions API.
+# Keys come from the environment (put them in .env; scripts/start_backend.ps1 loads it).
+llm_providers:
+  anthropic: { kind: anthropic }                      # ANTHROPIC_API_KEY
+  groq: { kind: openai_compatible, base_url: "https://api.groq.com/openai/v1", api_key_env: GROQ_API_KEY }
+  ollama: { kind: openai_compatible, base_url: "http://localhost:11434/v1" }   # local, no key
+
+# USD per 1M tokens (provider rates, cached 2026-09-25). Used by
 # gateway/clients.py's UsageLedger for per-incident cost. A model missing here is costed at 0 and
 # flagged `cost_known: false` rather than guessed.
 pricing_usd_per_mtok:
-  claude-opus-5-5: { input: 4.00, output: 20.00 }
-  claude-sonnet-5-5: { input: 2.00, output: 10.00 }
-  claude-sonnet-5: { input: 2.00, output: 10.00 }
-  claude-haiku-4-5: { input: 1.00, output: 5.00 }
+  qwen/qwen3.8-27b: { input: 0.00, output: 0.00 }    # Groq free tier: no charge (rate-limited)
 
 agent:
-  # react     -- the LLM ReAct agent (agent/react.py); needs Anthropic credentials.
+  # react     -- the LLM ReAct agent (agent/react.py); needs LLM provider credentials.
   # simulated -- a seeded, LLM-free proposal generator (agent/simulated.py) so the full pipeline and
   #              the eval harness run offline. It is a controlled stimulus for the VERIFIER, not a
   #              diagnosis result: it samples from each incident's oracle candidates by label mix.

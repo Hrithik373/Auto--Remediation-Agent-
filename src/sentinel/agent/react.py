@@ -76,7 +76,7 @@ class ReActDiagnosisAgent(DiagnosisAgent):
         self,
         llm: LLMClient,
         *,
-        model: str = "claude-sonnet-5",
+        model: str = "qwen/qwen3.8-27b",
         max_tool_calls: int = 8,
         max_tokens: int = 4096,
         signals: frozenset[str] = ALL_SIGNALS,

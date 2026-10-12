@@ -42,7 +42,7 @@ export const handlers = [
 
   http.get("/api/config", async () => {
     return HttpResponse.json({
-      models: { diagnosis_agent: "claude-sonnet-5", llm_judge: "claude-sonnet-5" },
+      models: { diagnosis_agent: "qwen/qwen3.8-27b", llm_judge: "qwen/qwen3.8-27b" },
       verifier_choice: "combined",
       tau: 0.5,
       auto_execute: false,

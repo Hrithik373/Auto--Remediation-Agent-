@@ -1,4 +1,4 @@
-.PHONY: setup test offline agent train review run eval report demo demo-local gateway e2e report-pdf frontend-guide blueprint mock-results demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
+.PHONY: setup test offline agent train review run eval report demo demo-local gateway e2e report-pdf frontend-guide blueprint mindmap mock-results demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
 
 setup:
 	pip install -e ".[dev]"
@@ -79,6 +79,10 @@ frontend-guide:
 # file lacks a description -- add one in scripts/build_blueprint.py when you add a file.
 blueprint:
 	python scripts/build_blueprint.py
+
+# The project mind map (docs/project_mindmap.pdf): the whole project on one A3 page.
+mindmap:
+	python scripts/build_mindmap.py
 
 # Snapshot `make eval`'s results into the console's mock layer (frontend/src/mock/experiments.json).
 mock-results:

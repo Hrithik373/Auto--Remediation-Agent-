@@ -21,7 +21,9 @@ from sentinel.verifier.policy import build_policy
 def build_judge(config: dict, llm: LLMClient | None = None) -> Verifier:
     from sentinel.verifier.llm_judge import LLMJudgeVerifier
 
-    return LLMJudgeVerifier(llm or build_llm_client(config), model=config["models"]["llm_judge"])
+    models = config["models"]
+    client = llm or build_llm_client(config, provider=models.get("llm_judge_provider"))
+    return LLMJudgeVerifier(client, model=models["llm_judge"])
 
 
 def build_learned(config: dict) -> Verifier:

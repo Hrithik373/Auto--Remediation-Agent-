@@ -78,6 +78,10 @@ CHAPTERS: list[tuple[str, str, list[tuple[str, str]]]] = [
                 ".gitignore",
                 "Tells git which files never to save, e.g. the 13 GB raw dataset, run databases and caches.",
             ),
+            (
+                ".env.example",
+                "Template for your private .env file, which holds the API keys (Groq for the LLM judge).",
+            ),
         ],
     ),
     (
@@ -483,6 +487,11 @@ CHAPTERS: list[tuple[str, str, list[tuple[str, str]]]] = [
                 "Starts the gateway and the console together, without Docker (make demo-local).",
             ),
             (
+                "scripts/start_backend.ps1",
+                "Windows helper: starts just the backend server on port 8080 using the "
+                "project's .venv, loading .env, training the model first if needed.",
+            ),
+            (
                 "scripts/e2e_live_demo.py",
                 "Rehearses the live demo automatically in a hidden browser and fails if "
                 "anything breaks (make e2e).",
@@ -494,6 +503,10 @@ CHAPTERS: list[tuple[str, str, list[tuple[str, str]]]] = [
             (
                 "scripts/build_frontend_guide.py",
                 "Builds docs/frontend_guide.pdf and can retake its screenshots (make " "frontend-guide).",
+            ),
+            (
+                "scripts/build_mindmap.py",
+                "Builds the mind-map slides for the panel, numbers read from make eval (make mindmap).",
             ),
             (
                 "scripts/build_blueprint.py",
@@ -742,6 +755,10 @@ CHAPTERS: list[tuple[str, str, list[tuple[str, str]]]] = [
             ),
             ("docs/frontend_guide.pdf", "The guide to how the web console works."),
             ("docs/project_blueprint.pdf", "This document."),
+            (
+                "docs/project_mindmap.pdf",
+                "The project as 11 presentation slides: a numbered mind map, one slide per branch, results, limits.",
+            ),
             (
                 "docs/report/body.html",
                 "Text and diagrams of the architecture report (numbers are filled in " "automatically).",

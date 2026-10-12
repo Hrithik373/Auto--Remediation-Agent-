@@ -22,7 +22,7 @@ def build_agent(
         from sentinel.agent.react import ReActDiagnosisAgent
 
         return ReActDiagnosisAgent(
-            llm or build_llm_client(config),
+            llm or build_llm_client(config, provider=config["models"].get("diagnosis_agent_provider")),
             model=config["models"]["diagnosis_agent"],
             max_tool_calls=agent_cfg.get("max_tool_calls", 8),
             max_tokens=config["models"].get("max_tokens_per_call", 4096),

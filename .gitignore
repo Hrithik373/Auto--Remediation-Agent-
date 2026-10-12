@@ -32,6 +32,7 @@ data/
 docs/report/build/
 docs/frontend_guide/build/
 docs/blueprint/build/
+docs/mindmap/build/
 
 # Run store / artifacts
 *.duckdb

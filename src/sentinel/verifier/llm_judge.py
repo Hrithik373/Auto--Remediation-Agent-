@@ -79,7 +79,7 @@ class LLMJudgeVerifier(Verifier):
         self,
         llm: LLMClient,
         *,
-        model: str = "claude-sonnet-5",
+        model: str = "qwen/qwen3.8-27b",
         max_tokens: int = 1024,
         context_budget_tokens: int = 4000,
     ) -> None:
