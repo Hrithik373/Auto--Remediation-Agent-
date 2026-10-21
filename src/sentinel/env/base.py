@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Abstract EnvAdapter: list/get incidents, apply an action, report the oracle outcome.
+# Every environment implements it, so the rest of the system is cluster-agnostic.
 """EnvAdapter ABC — the only thing that touches the benchmark (blueprint §5).
 
 Every concrete adapter (offline, AIOpsLab, ITBench) implements this exact interface so the rest of

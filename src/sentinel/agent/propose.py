@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Parses the agent's final answer into a validated ProposedAction (strict, never repaired).
+# Used by react.py; a bad proposal raises so the agent is told to try again.
 """Turns the diagnosis agent's final reasoning step into a schema-valid ProposedAction (blueprint §3).
 
 Kept separate from react.py so the emission/parsing contract is independently testable. Parsing is

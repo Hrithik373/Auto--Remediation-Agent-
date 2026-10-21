@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# IncidentContext and Telemetry: what an environment hands to the agent and the verifiers.
+# fault_family is eval-only ground truth and is never shown to an LLM.
 """Incident-side contracts: what the env adapter hands to the diagnosis agent.
 
 See ARCHITECTURE_BLUEPRINT.md §4.

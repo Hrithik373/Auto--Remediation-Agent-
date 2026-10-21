@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import type { RunRecord, StepRecord } from "@/api/types";
 import type { RunStreamStatus } from "@/api/runs";
 import { DECISION_CLASSES, type OutcomePill } from "@/lib/decisionColors";
@@ -6,6 +7,7 @@ import { formatDuration, formatTokens, formatUsd } from "@/lib/format";
 import ActionCard from "./ActionCard";
 import VerdictCard from "./VerdictCard";
 import StatusDot from "@/features/shared/StatusDot";
+import { useAssistantStore } from "@/store/assistant";
 
 function outcomePillForStep(step: StepRecord): { pill: OutcomePill; label: string } {
   if (step.verdict.decision === "block") return { pill: "block", label: "blocked" };
@@ -14,8 +16,27 @@ function outcomePillForStep(step: StepRecord): { pill: OutcomePill; label: strin
   return { pill: "allow", label: "applied · not resolved" };
 }
 
-function StepNode({ step, tau, index }: { step: StepRecord; tau: number; index: number }) {
+interface StepNodeProps {
+  step: StepRecord;
+  tau: number;
+  index: number;
+  runId?: string | null;
+  incidentId?: string;
+}
+
+function StepNode({ step, tau, index, runId, incidentId }: StepNodeProps) {
   const [expanded, setExpanded] = useState(index === 0 || step.verdict.decision !== "allow");
+  const navigate = useNavigate();
+  const askLater = useAssistantStore((s) => s.askLater);
+  const askWhy = () => {
+    const verb = step.verdict.decision === "allow" ? "allowed" : step.verdict.decision === "revise" ? "sent back" : "blocked";
+    askLater(`Why was step ${step.step_idx} (${step.proposed.action_type} on ${step.proposed.target}) ${verb}?`, {
+      incidentId: incidentId ?? null,
+      runId: runId ?? null,
+      stepIdx: step.step_idx,
+    });
+    navigate("/assistant");
+  };
   const { pill, label } = outcomePillForStep(step);
   const classes = DECISION_CLASSES[pill];
 
@@ -40,7 +61,14 @@ function StepNode({ step, tau, index }: { step: StepRecord; tau: number; index: 
       {expanded && (
         <div className="mt-2 grid gap-3 pb-4 pl-2 sm:grid-cols-2">
           <ActionCard action={step.proposed} />
-          <VerdictCard verdict={step.verdict} tau={tau} />
+          <div className="space-y-2">
+            <VerdictCard verdict={step.verdict} tau={tau} />
+            {runId && (
+              <button onClick={askWhy} className="text-2xs text-accent hover:underline">
+                Ask why &rarr;
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -93,10 +121,13 @@ interface LoopTimelineProps {
   status: RunStreamStatus;
   final: RunRecord | null;
   tau: number;
+  /** When set, each step offers "Ask why", which opens the Assistant with this run as context. */
+  runId?: string | null;
+  incidentId?: string;
 }
 
 /** ★ The live trace (blueprint §6.2). Streams in via SSE; each node is one orchestrator step. */
-export default function LoopTimeline({ steps, status, final, tau }: LoopTimelineProps) {
+export default function LoopTimeline({ steps, status, final, tau, runId, incidentId }: LoopTimelineProps) {
   if (status === "idle") {
     return <p className="text-sm text-console-text-muted">Start a run to see the loop trace.</p>;
   }
@@ -105,7 +136,7 @@ export default function LoopTimeline({ steps, status, final, tau }: LoopTimeline
     <div className="space-y-4">
       {steps.map((step, i) => (
         <div key={step.step_idx} className="animate-fade-in">
-          <StepNode step={step} tau={tau} index={i} />
+          <StepNode step={step} tau={tau} index={i} runId={runId} incidentId={incidentId} />
         </div>
       ))}
 

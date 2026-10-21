@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Builds the configured agent (agent.kind = react | simulated) with its own LLM client.
+# Called by orchestrator/factory.py when a run is wired up.
 """Builds the configured DiagnosisAgent (config `agent.kind`: react | simulated)."""
 
 from __future__ import annotations

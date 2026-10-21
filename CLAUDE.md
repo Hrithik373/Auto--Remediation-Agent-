@@ -6,6 +6,9 @@
 - `auto_execute` defaults to FALSE everywhere. Real apply requires an explicit config flag.
 - Every cross-module payload is a Pydantic model from `src/sentinel/schemas`. No loose dicts across
   module boundaries.
+- The assistant (`src/sentinel/assistant/`) EXPLAINS verdicts; it never decides and never executes.
+  Its judgements come only from `verifier.policy` (verify only), and no assistant module may reference
+  the executor or `apply_action`. See [ASSISTANT_BLUEPRINT.md](ASSISTANT_BLUEPRINT.md).
 - The system MUST run end-to-end with `OfflineEnvAdapter` and zero Kubernetes. Never make a core
   module import a cluster client at module top-level.
 

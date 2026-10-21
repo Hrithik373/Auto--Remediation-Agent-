@@ -1,4 +1,4 @@
-.PHONY: setup test offline agent train review run eval report demo demo-local gateway e2e report-pdf frontend-guide blueprint mindmap mock-results demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
+.PHONY: observability observability-down setup test offline agent train review run eval report demo demo-local gateway e2e report-pdf frontend-guide blueprint mindmap mock-results demo lint fmt clean types frontend-dev frontend-build fetch-itbench convert-itbench
 
 setup:
 	pip install -e ".[dev]"
@@ -55,6 +55,14 @@ demo:
 # The live demo without Docker: gateway + console (live mode, :5173). No Prometheus/Grafana.
 demo-local:
 	python scripts/demo_local.py
+
+# Prometheus :9090 + Grafana :3000 in Docker, scraping a natively running gateway (demo-local or
+# scripts/start_backend.ps1). Fills the console's Observability screen. Stop: make observability-down
+observability:
+	docker compose -f docker-compose.observability.yml up -d
+
+observability-down:
+	docker compose -f docker-compose.observability.yml down
 
 # Just the gateway (console API + /chat + /metrics) on :8080 against the offline env.
 gateway:

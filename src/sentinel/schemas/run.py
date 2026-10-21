@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# StepRecord (one propose/verify/act step) and RunRecord (a whole incident run).
+# These are the rows stored in DuckDB and returned by the /api/runs endpoints.
 """Persistence-row contracts. Every orchestrator run and step becomes one of these, written to
 DuckDB by store/duckdb_store.py (Phase P2+). Per CLAUDE.md: "no experiment result exists unless it's
 a RunRecord row in DuckDB."

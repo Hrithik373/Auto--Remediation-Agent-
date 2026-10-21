@@ -1,0 +1,13 @@
+# Keep the Docker build context small: no virtualenvs, raw datasets, run outputs or build output.
+.git
+.venv
+.pytest_cache
+.ruff_cache
+**/__pycache__
+data
+runs
+docs/report/build
+frontend/node_modules
+frontend/dist
+.env
+*.log

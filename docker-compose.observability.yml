@@ -1,0 +1,35 @@
+# Prometheus + Grafana only, for when the gateway runs natively (scripts/start_backend.ps1 or
+# `make gateway`) instead of in docker-compose.yml's `gateway` container.
+#
+#   docker compose -f docker-compose.observability.yml up -d     (or: make observability)
+#
+#   prometheus http://localhost:9090   scrapes the host's gateway at host.docker.internal:8080/metrics/
+#   grafana    http://localhost:3000   provisioned "sentinel - live loop" dashboard, embedded by the
+#                                      console's Observability screen (VITE_GRAFANA_URL in .env.live)
+#
+# Ports bind to 127.0.0.1 only: Grafana runs with anonymous read access for iframe embedding.
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./config/prometheus.local.yml:/etc/prometheus/prometheus.yml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Linux engines; Docker Desktop provides it already
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      # Local demo only: anonymous read-only access + iframe embedding for the console's
+      # Observability screen. Never expose this configuration beyond localhost.
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+    volumes:
+      - ./config/grafana:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus

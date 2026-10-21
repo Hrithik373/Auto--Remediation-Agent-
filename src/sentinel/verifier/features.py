@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Feature extraction for the learned verifier from telemetry + the proposed action only.
+# Never uses the oracle, fault_family or incident id.
 """Feature extraction for the learned verifier (blueprint §6.2).
 
 Inputs are ONLY what a verifier may legitimately see: the incident's observable telemetry and the

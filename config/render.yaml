@@ -1,0 +1,23 @@
+# Overlay on config/default.yaml for the public single-container demo (Dockerfile.render, render.yaml).
+#
+# Public = anyone with the URL can use it, so:
+#   * execution stays dry-run: proposals are verified and planned, never applied (golden rule default);
+#   * the raw /chat LLM proxy is off, so the GROQ_API_KEY can't be used as a free relay;
+#   * the Results screen serves deploy/results_snapshot.json (written by `make eval`), because the free
+#     tier's disk is ephemeral and the 87 MB evaluation store isn't shipped.
+# Console runs and the assistant still work live; the LLM judge and the assistant's LLM mode use
+# GROQ_API_KEY when it is set and fall back (judge: fail-closed; assistant: offline mode) when it isn't.
+
+env:
+  adapter: offline
+
+execution:
+  auto_execute: false
+  dry_run: true
+
+gateway:
+  chat_proxy: false
+  step_delay_ms: 700
+
+eval:
+  snapshot_path: deploy/results_snapshot.json

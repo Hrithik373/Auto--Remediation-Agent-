@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Stub adapter for Microsoft AIOpsLab (live cluster). Not implemented yet.
+# Will import its cluster client lazily so the core still runs with zero Kubernetes.
 """AIOpsLab (Microsoft) EnvAdapter. Stub — cluster integration is parallel/non-blocking work per
 ARCHITECTURE_BLUEPRINT.md §8: "If cluster setup slips, the offline path still gives you a complete,
 defensible Review 2 and Final."

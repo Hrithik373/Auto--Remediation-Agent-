@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Combines the layers: final = envelope passes AND max secondary risk < tau.
+# Always reports all three layers, marking inactive ones as skipped.
 """Verifier policy combinator (blueprint §5): final = envelope_pass AND (score < threshold tau).
 
 The layering is the experiment. Every combined Verdict lists ALL three layers in `layers`

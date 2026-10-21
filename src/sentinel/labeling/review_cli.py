@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Command-line tool for a human to accept or correct labels flagged needs_review.
+# The only path that marks a label human_reviewed, with reviewer and timestamp.
 """Human-in-the-loop label review (blueprint §6.1): walk a fixture's `needs_review` labels and accept
 or correct each one. The only code path that sets provenance = "human_reviewed".
 

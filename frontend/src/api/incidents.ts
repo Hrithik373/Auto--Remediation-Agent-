@@ -1,3 +1,6 @@
+// sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+// TanStack Query hooks for /api/incidents (queue) and /api/incidents/:id (detail).
+// Feed the incident queue and the incident detail panes.
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "./client";
 import type { IncidentContext } from "./types";

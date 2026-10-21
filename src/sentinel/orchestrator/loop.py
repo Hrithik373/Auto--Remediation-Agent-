@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# The Orchestrator.run loop: asks the agent, verifies, then executes, revises or escalates.
+# Records every step as a StepRecord and returns the whole run as a RunRecord.
 """Orchestrator loop (blueprint §5): diagnose -> propose -> VERIFY -> act / revise / escalate.
 
     for step in range(max_steps):

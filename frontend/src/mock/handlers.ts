@@ -1,5 +1,6 @@
 import { http, HttpResponse, delay } from "msw";
-import type { RunRecord, StepRecord } from "@/api/types";
+import type { ChatRequest, RunRecord, ScenarioRequest, StepRecord } from "@/api/types";
+import { MOCK_INFO, mockChat, mockEntities, mockExplanation, mockScenario } from "./assistant";
 import {
   ABLATION_ROWS,
   CANNED_RUNS,
@@ -151,5 +152,38 @@ export const handlers = [
   http.get("/api/experiments/ablations", async () => {
     await delay(160);
     return HttpResponse.json(ABLATION_ROWS);
+  }),
+
+  // Phase P6 assistant -- canned (see mock/assistant.ts); real answers come from the gateway.
+  http.get("/api/assistant/info", async () => {
+    await delay(100);
+    return HttpResponse.json(MOCK_INFO);
+  }),
+
+  http.get("/api/assistant/entities/:id", async ({ params }) => {
+    await delay(100);
+    const id = params.id as string;
+    return HttpResponse.json(mockEntities(INCIDENT_CONTEXTS[id], id));
+  }),
+
+  http.post("/api/assistant/chat", async ({ request }) => {
+    const body = (await request.json()) as ChatRequest;
+    await delay(600);
+    return HttpResponse.json(mockChat(body));
+  }),
+
+  http.post("/api/assistant/scenario", async ({ request }) => {
+    const body = (await request.json()) as ScenarioRequest;
+    await delay(400);
+    return HttpResponse.json(mockScenario(body));
+  }),
+
+  http.get("/api/assistant/explain/:runId/:stepIdx", async ({ params }) => {
+    await delay(200);
+    const runId = params.runId as string;
+    const run = finishedRuns.get(runId) ?? pendingRuns.get(runId)?.final;
+    const step = run?.steps?.[Number(params.stepIdx)];
+    if (!step) return new HttpResponse(null, { status: 404 });
+    return HttpResponse.json(mockExplanation(step.verdict, 0.5));
   }),
 ];

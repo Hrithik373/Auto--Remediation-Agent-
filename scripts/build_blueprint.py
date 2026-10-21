@@ -47,6 +47,11 @@ CHAPTERS: list[tuple[str, str, list[tuple[str, str]]]] = [
                 "and the demo script.",
             ),
             (
+                "ASSISTANT_BLUEPRINT.md",
+                "The design plan for the Assistant chatbot (phase P6): what it may and may not do, its tools, "
+                "how it explains a verdict, and its API.",
+            ),
+            (
                 "PROGRESS.md",
                 "★ Status board: which phases are done, the headline results, and what is still left to do.",
             ),
@@ -70,6 +75,24 @@ CHAPTERS: list[tuple[str, str, list[tuple[str, str]]]] = [
             ),
             ("requirements.txt", "The same library list as pyproject.toml, as a plain list for pip."),
             ("Dockerfile.gateway", "Recipe for building the backend (gateway) into a Docker container."),
+            (
+                "Dockerfile.render",
+                "One container with the backend AND the built console, for the free Render demo.",
+            ),
+            (
+                "render.yaml",
+                "Render Blueprint: tells Render to run Dockerfile.render as one free web service.",
+            ),
+            ("DEPLOY.md", "How to put the demo online on Render's free tier, and what works there."),
+            (".dockerignore", "Keeps the Docker build small: no virtualenv, raw dataset or run outputs."),
+            (
+                "deploy/results_snapshot.json",
+                "A copy of the evaluation results (from make eval) shown on the online demo's Results screen.",
+            ),
+            (
+                "docker-compose.observability.yml",
+                "Starts only Prometheus and Grafana in Docker, watching a backend that runs outside Docker.",
+            ),
             (
                 "docker-compose.yml",
                 "Starts the whole demo in Docker at once: console, gateway, Prometheus and Grafana.",
@@ -117,6 +140,14 @@ CHAPTERS: list[tuple[str, str, list[tuple[str, str]]]] = [
             (
                 "config/prometheus.yml",
                 "Tells Prometheus where to collect live metrics from (the gateway's /metrics).",
+            ),
+            (
+                "config/prometheus.local.yml",
+                "The same, for a backend running outside Docker (make observability).",
+            ),
+            (
+                "config/render.yaml",
+                "Safe settings for the public online demo: dry-run only, LLM relay off, results snapshot.",
             ),
             ("config/grafana/datasources/prometheus.yml", "Connects Grafana to Prometheus automatically."),
             (
@@ -200,6 +231,11 @@ CHAPTERS: list[tuple[str, str, list[tuple[str, str]]]] = [
                 "src/sentinel/schemas/run.py",
                 "★ Defines a StepRecord (one loop step) and a RunRecord (a whole run). "
                 "These are exactly what gets saved to the database.",
+            ),
+            (
+                "src/sentinel/schemas/assistant.py",
+                "The data shapes of the Assistant: a what-if scenario, its judgement, the plain-language "
+                "explanation of a verdict, and chat messages.",
             ),
             (
                 "src/sentinel/schemas/__init__.py",
@@ -425,11 +461,62 @@ CHAPTERS: list[tuple[str, str, list[tuple[str, str]]]] = [
             ),
             (
                 "src/sentinel/gateway/clients.py",
-                "Talks to the Anthropic API, caches answers on disk, and keeps track of " "tokens and cost.",
+                "Talks to the LLM providers (Groq, Anthropic, Ollama), caches answers on disk, and tracks "
+                "tokens and cost.",
             ),
             (
                 "src/sentinel/observability/metrics.py",
                 "Counts live events (verdicts, blocks, run outcomes, latency) " "for Prometheus and Grafana.",
+            ),
+        ],
+    ),
+    (
+        "Backend: the Assistant chatbot (src/sentinel/assistant/)",
+        "A chatbot that explains the system and why the verifier allowed or blocked an action. It never decides "
+        "and never executes: every verdict it reports comes from the real verifier.",
+        [
+            (
+                "src/sentinel/assistant/service.py",
+                "★ The Assistant's front desk: answers with the LLM when a key is set, otherwise (or on any "
+                "LLM error) answers in offline mode.",
+            ),
+            (
+                "src/sentinel/assistant/explain.py",
+                "★ Turns a verdict into plain language: which layer decided, how close the risk was to τ, "
+                "and what would change the outcome.",
+            ),
+            (
+                "src/sentinel/assistant/scenarios.py",
+                "Judges a what-if action by running the real verifier on it (check only, nothing runs), "
+                "and adds the benchmark label.",
+            ),
+            (
+                "src/sentinel/assistant/tools.py",
+                "The Assistant's read-only tools: search docs, read incidents, envelope rules, judge a "
+                "scenario, explain a step, metrics.",
+            ),
+            (
+                "src/sentinel/assistant/entities.py",
+                "Lists an incident's services, pods, nodes, namespaces, flags and other values, so the "
+                "scenario form can offer dropdowns (values only, never the answer labels).",
+            ),
+            (
+                "src/sentinel/assistant/knowledge.py",
+                "Searchable index of the project's docs and every module's description, so answers can "
+                "cite their sources.",
+            ),
+            (
+                "src/sentinel/assistant/loop.py",
+                "The LLM's think → use a tool → answer loop, kept small and in the repo.",
+            ),
+            ("src/sentinel/assistant/prompts.py", "The Assistant's own instructions to the LLM."),
+            (
+                "src/sentinel/assistant/router.py",
+                "Offline mode: picks the right tool from keywords and writes a templated answer, no LLM needed.",
+            ),
+            (
+                "src/sentinel/gateway/assistant_api.py",
+                "The Assistant's web endpoints: chat, judge a scenario, explain a step, and info.",
             ),
         ],
     ),
@@ -570,6 +657,15 @@ CHAPTERS: list[tuple[str, str, list[tuple[str, str]]]] = [
                 "tests/test_gateway_api.py",
                 "Checks the console API: live streaming, safety refusals and metrics.",
             ),
+            (
+                "tests/test_openai_compatible_client.py",
+                "Checks the Groq/Ollama-style LLM client against a local fake server: requests, retries, costs.",
+            ),
+            (
+                "tests/test_assistant.py",
+                "Checks the Assistant: every explanation path, that it never executes, offline answers, "
+                "the LLM loop and its API.",
+            ),
         ],
     ),
     (
@@ -656,6 +752,30 @@ CHAPTERS: list[tuple[str, str, list[tuple[str, str]]]] = [
                 "The Observability screen: embeds Grafana when it is running.",
             ),
             (
+                "frontend/src/routes/AssistantRoute.tsx",
+                "The Assistant screen: chat on the left, a what-if scenario form on the right.",
+            ),
+            (
+                "frontend/src/features/assistant/ChatPanel.tsx",
+                "The chat: questions, answers, tool trace and sources, with verdicts shown as VerdictCards.",
+            ),
+            (
+                "frontend/src/features/assistant/ScenarioPanel.tsx",
+                "Form to ask whether a specific action would be allowed, and show the verdict and why.",
+            ),
+            (
+                "frontend/src/features/assistant/EntitySelect.tsx",
+                "A dropdown of the incident's entities with a custom… option, used by every scenario field.",
+            ),
+            (
+                "frontend/src/features/assistant/RichText.tsx",
+                "Shows the bot's answer with simple formatting (bold, code, bullet lists), never raw HTML.",
+            ),
+            (
+                "frontend/src/features/assistant/ExplanationCard.tsx",
+                "Shows the plain-language explanation: headline, each layer, what would change it, the label.",
+            ),
+            (
                 "frontend/src/features/queue/IncidentTable.tsx",
                 "The clickable table of incidents with tags and status.",
             ),
@@ -719,10 +839,18 @@ CHAPTERS: list[tuple[str, str, list[tuple[str, str]]]] = [
             ),
             ("frontend/src/api/experiments.ts", "Data hooks for the Results screen."),
             (
+                "frontend/src/api/assistant.ts",
+                "Data hooks for the Assistant: info, chat, scenarios, explanations.",
+            ),
+            (
                 "frontend/src/api/types.ts",
                 "The data shapes, generated from the backend by make types. Never edit by hand.",
             ),
             ("frontend/src/store/ui.ts", "Shared screen settings: τ, the chosen verifier and dry-run."),
+            (
+                "frontend/src/store/assistant.ts",
+                "The Assistant's chat history and context, for this session only.",
+            ),
             (
                 "frontend/src/lib/decisionColors.ts",
                 "★ The one place that maps each decision to its colour, so colour "
@@ -737,6 +865,10 @@ CHAPTERS: list[tuple[str, str, list[tuple[str, str]]]] = [
                 "The fake backend's answers in mock mode, including a simulated live run.",
             ),
             ("frontend/src/mock/fixtures.ts", "Sample incidents and canned runs for mock mode."),
+            (
+                "frontend/src/mock/assistant.ts",
+                "Canned Assistant answers for mock mode, clearly marked as mock.",
+            ),
             (
                 "frontend/src/mock/experiments.json",
                 "A copy of the real evaluation results, so mock mode shows true " "numbers.",

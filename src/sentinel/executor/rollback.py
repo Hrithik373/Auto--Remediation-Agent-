@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Plans the inverse action for reversible action types (never executes it).
+# A rollback is a normal ProposedAction and must pass the verifier like any other.
 """Reversibility helpers (blueprint §3) -- only for `reversible: true` types in config/action_envelope.yaml.
 
 Rollback PLANS an inverse action; it never executes one. The inverse is itself a ProposedAction and

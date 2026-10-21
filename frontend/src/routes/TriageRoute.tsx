@@ -56,7 +56,14 @@ export default function TriageRoute() {
           {latestAction && <DiagnosisCard action={latestAction} />}
 
           <Card title="Loop trace">
-            <LoopTimeline steps={stream.steps} status={stream.status} final={stream.final} tau={tau} />
+            <LoopTimeline
+              steps={stream.steps}
+              status={stream.status}
+              final={stream.final}
+              tau={tau}
+              runId={stream.status === "done" ? runId : null}
+              incidentId={incident.incident_id}
+            />
           </Card>
         </div>
 

@@ -14,12 +14,37 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from sentinel.schemas.action import ExecutionResult, ProposedAction  # noqa: E402
+from sentinel.schemas.assistant import (  # noqa: E402
+    AssistantInfo,
+    ChatReply,
+    ChatRequest,
+    IncidentEntities,
+    ScenarioJudgement,
+    ScenarioRequest,
+    VerdictExplanation,
+)
 from sentinel.schemas.incident import IncidentContext, Telemetry  # noqa: E402
 from sentinel.schemas.run import RunRecord, StepRecord  # noqa: E402
 from sentinel.schemas.verdict import Verdict  # noqa: E402
 
-# Every model the frontend consumes across api/incidents.ts, api/runs.ts, api/experiments.ts.
-MODELS = [Telemetry, IncidentContext, ProposedAction, ExecutionResult, Verdict, StepRecord, RunRecord]
+# Every model the frontend consumes across api/incidents.ts, api/runs.ts, api/experiments.ts and
+# api/assistant.ts (Phase P6, ASSISTANT_BLUEPRINT.md).
+MODELS = [
+    Telemetry,
+    IncidentContext,
+    ProposedAction,
+    ExecutionResult,
+    Verdict,
+    StepRecord,
+    RunRecord,
+    ScenarioRequest,
+    ScenarioJudgement,
+    VerdictExplanation,
+    ChatRequest,
+    ChatReply,
+    AssistantInfo,
+    IncidentEntities,
+]
 
 
 def main() -> None:

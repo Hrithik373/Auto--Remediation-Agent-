@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Offline environment: reads incident snapshots + labeled oracle actions from fixtures/.
+# The default env for tests, eval and the console; applying an action just flips a flag.
 """OfflineEnvAdapter: reads hand-built snapshot fixtures from disk. No cluster, no network.
 
 This is the de-risking decision from ARCHITECTURE_BLUEPRINT.md §5: implemented first and fully so the

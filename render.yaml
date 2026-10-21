@@ -1,0 +1,17 @@
+# Render Blueprint: one free web service running Dockerfile.render (API + console on one origin).
+# In the Render dashboard: New > Blueprint > pick this repository. Then set GROQ_API_KEY (optional).
+# Details, limits and what is not deployed (Prometheus/Grafana): DEPLOY.md.
+services:
+  - type: web
+    name: sentinel-remediate
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile.render
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: SENTINEL_CONFIG
+        value: config/render.yaml
+      - key: GROQ_API_KEY
+        sync: false  # secret: entered in the dashboard, never committed

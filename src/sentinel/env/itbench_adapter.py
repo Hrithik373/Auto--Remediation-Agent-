@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Stub adapter for IBM ITBench (live cluster). Not implemented yet.
+# ITBench scenarios already run offline as converted fixtures via offline_adapter.py.
 """ITBench (IBM) EnvAdapter. Stub — cluster integration is parallel/non-blocking work per
 ARCHITECTURE_BLUEPRINT.md §8: "If cluster setup slips, the offline path still gives you a complete,
 defensible Review 2 and Final."

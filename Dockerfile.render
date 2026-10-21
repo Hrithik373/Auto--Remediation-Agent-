@@ -1,0 +1,38 @@
+# One container for a public demo on Render (or any single-container host): the FastAPI gateway serves
+# the API AND the built console from the same origin, so the live SSE stream needs no proxy or CORS.
+# See render.yaml and DEPLOY.md. Runs fully offline; LLM-backed variants and the assistant's LLM mode
+# need GROQ_API_KEY in the service's environment.
+
+# -- 1. build the console in live mode (talks to /api on the same origin) ---------------------------
+FROM node:20-slim AS console
+WORKDIR /console
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+# VITE_GRAFANA_URL left empty: there is no Prometheus/Grafana on a single free instance.
+RUN VITE_USE_MOCKS=false VITE_GRAFANA_URL= npm run build
+
+# -- 2. the gateway ---------------------------------------------------------------------------------
+FROM python:3.12-slim
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
+    SENTINEL_CONFIG=config/render.yaml \
+    SENTINEL_STATIC_DIR=/app/console
+
+COPY pyproject.toml README.md ./
+COPY src ./src
+# Editable install: config/, fixtures/ and the docs are found relative to the repo root (/app).
+RUN pip install --no-cache-dir -e .
+
+COPY config ./config
+COPY fixtures ./fixtures
+COPY scripts ./scripts
+COPY deploy ./deploy
+COPY *.md ./
+# The learned verifier, trained at build time (seeded, a few seconds): the `learned` variant works offline.
+RUN python scripts/train_learned.py
+
+COPY --from=console /console/dist ./console
+
+# Render injects $PORT (default 10000); 8080 locally.
+CMD ["sh", "-c", "uvicorn sentinel.gateway.app:app --app-dir src --host 0.0.0.0 --port ${PORT:-8080}"]

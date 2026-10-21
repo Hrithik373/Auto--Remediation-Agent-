@@ -1,6 +1,6 @@
 """DiagnosisAgent ABC -- what the orchestrator depends on, whichever agent is configured.
 
-The agent only PROPOSES (CLAUDE.md: "the LLM is an untrusted planner"); it never touches the
+The agent only PROPOSES ("the LLM is an untrusted planner"); it never touches the
 environment's control plane. Each agent owns its own UsageLedger -- never shared with a verifier.
 """
 

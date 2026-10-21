@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# DuckDBStore: writes and reads RunRecords/StepRecords, metadata and human decisions.
+# Used by the eval runner, the report and the gateway API.
 """DuckDB-backed RunRecord/StepRecord store (blueprint §2, §5).
 
 CLAUDE.md: "no experiment result exists unless it's a RunRecord row in DuckDB." Each run is one row in
@@ -210,6 +213,12 @@ class DuckDBStore:
         with self._connect() as con:
             row = con.execute("SELECT record_json FROM runs WHERE run_id = ?", [run_id]).fetchone()
         return RunRecord.model_validate_json(row[0]) if row else None
+
+    def get_run_meta(self, run_id: str) -> dict | None:
+        """The metadata a run was written with (experiment, variant, tau, ...), or None if unknown."""
+        with self._connect() as con:
+            row = con.execute("SELECT meta_json FROM runs WHERE run_id = ?", [run_id]).fetchone()
+        return json.loads(row[0]) if row and row[0] else ({} if row else None)
 
     def query(self, sql: str, params: list | None = None):
         """Read-only SQL for the eval harness; returns a pandas DataFrame."""

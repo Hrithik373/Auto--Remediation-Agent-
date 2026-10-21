@@ -13,7 +13,10 @@ Phases **P0–P5** are implemented and run end to end with **zero Kubernetes and
 diagnosis agent (an LLM ReAct agent, or a seeded simulated planner for offline runs), the layered
 verifier (deterministic envelope → LLM judge and/or learned XGBoost verifier, combined by a τ
 threshold), the orchestrator loop, a DuckDB run store, the evaluation harness, and the live triage
-console. Details and what still needs a human, API spend or Docker: [PROGRESS.md](PROGRESS.md).
+console. Phase **P6** adds the **Assistant**, a chatbot in the console that explains the system and why
+the verifier allowed or blocked an action (it reports the real verifier's verdict and never executes;
+see [ASSISTANT_BLUEPRINT.md](ASSISTANT_BLUEPRINT.md)). Details and what still needs a human, API spend
+or Docker: [PROGRESS.md](PROGRESS.md). Public demo on Render's free tier: [DEPLOY.md](DEPLOY.md).
 
 Headline offline result (`make eval`, 41 incidents × 5 seeds, τ = 0.5): the share of runs in which a
 **destructive action reached execution** falls from 33% (ungated agent) and 21% (envelope only) to
@@ -87,7 +90,8 @@ annotated layout. In short:
 - `src/sentinel/agent/` (ReAct + simulated planner), `executor/` (golden rules enforced in code),
   `orchestrator/` (the loop), `labeling/` (labels with provenance, review CLI), `eval/` (metrics,
   runner, Pareto, ablations, report, figures), `store/` (DuckDB), `gateway/` (FastAPI: console API
-  with SSE, `/chat`, `/metrics`), `observability/` (Prometheus).
+  with SSE, `/chat`, `/metrics`, `/api/assistant/*`), `observability/` (Prometheus), `assistant/` (the
+  explainer chatbot: tools, offline router, LLM tool loop, deterministic verdict explanations).
 - `fixtures/incidents/` — 6 hand-built offline incidents plus 35 converted from the public ITBench-Lite
   SRE scenarios (`itbench-sre-scenario-*.json`, see [Data sources](#data-sources)). Each has an oracle
   with labeled example actions across the `correct` / `ineffective` / `destructive` /

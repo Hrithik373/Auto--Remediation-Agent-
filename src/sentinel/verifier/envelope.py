@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Deterministic hard gate: allow-listed action types, param schema, blast-radius limits.
+# Never calls an LLM; always the first layer of every verifier variant.
 """EnvelopeVerifier: the deterministic hard gate (blueprint §5, §6.1).
 
 Rejects any ProposedAction whose action_type isn't in config/action_envelope.yaml's allow-list, or

@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Builds the learned verifier's labeled dataset from fixture oracles (+ augmented cases).
+# Uses the same label-free proposal wording as the simulated agent to avoid leakage.
 """Builds the learned verifier's labeled dataset from the fixture oracles (blueprint §6.1, §6.2).
 
 Each fixture's `oracle.labeled_actions` becomes LabeledAction rows. The proposal text attached to each

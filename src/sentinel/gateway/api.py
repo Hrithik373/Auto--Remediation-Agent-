@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# The /api routes: incidents, config, start/stream/list runs, human decisions, experiments.
+# Live runs stream over SSE; experiment views are read from the same DuckDB rows as eval.
 """Read/control API for the triage console (FRONTEND_BLUEPRINT.md §5), mounted at /api by gateway/app.py.
 
 Payloads reuse schemas/ (IncidentContext, StepRecord, RunRecord); the experiment endpoints serve
@@ -220,8 +223,15 @@ def _results(experiment: str, db_version: float) -> dict:
 
 
 def results() -> dict:
+    """`make eval`'s tables, rebuilt from DuckDB. A deploy with an empty store (e.g. Render's free tier,
+    whose disk is wiped on restart) may point `eval.snapshot_path` at a results.json that `make eval`
+    wrote; it is served only while the store holds no rows for the experiment."""
     s = state()
-    return _results(s["config"]["eval"]["experiment"], _db_version(s["store"]))
+    built = _results(s["config"]["eval"]["experiment"], _db_version(s["store"]))
+    snapshot = s["config"]["eval"].get("snapshot_path")
+    if not built.get("baselines") and snapshot and resolve_path(snapshot).is_file():
+        return json.loads(resolve_path(snapshot).read_text(encoding="utf-8"))
+    return built
 
 
 @router.get("/experiments/pareto")

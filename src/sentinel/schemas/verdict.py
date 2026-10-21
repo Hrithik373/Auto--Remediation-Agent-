@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Verdict and LayerVerdict: the verifier's decision, risk score and reasons per layer.
+# The console's VerdictCard renders every layer from this model.
 """Verifier output contract. This is the project's contribution's central artifact — see
 ARCHITECTURE_BLUEPRINT.md §6 and src/sentinel/verifier/.
 """

@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Defines the Prometheus counters/histograms and records each live step and run outcome.
+# Exposed at the gateway's /metrics endpoint.
 """Prometheus metrics for the live loop (blueprint §2, §8 P5), scraped from the gateway's /metrics by
 docker-compose.yml's `prometheus` service and charted by the provisioned Grafana dashboard.
 

@@ -146,3 +146,84 @@ def test_prometheus_metrics_exposed(monkeypatch, tmp_path):
     _stream(client, run_id)
     body = client.get("/metrics/").text
     assert "sentinel_verdicts_total" in body and "sentinel_step_latency_seconds" in body
+
+
+# -- single-container deploy (Dockerfile.render / render.yaml) ------------------------------------
+
+
+def test_render_overlay_is_public_safe():
+    config = load_config(REPO_ROOT / "config" / "render.yaml")
+    assert config["execution"]["auto_execute"] is False and config["execution"]["dry_run"] is True
+    assert config["gateway"]["chat_proxy"] is False
+    assert (REPO_ROOT / config["eval"]["snapshot_path"]).is_file()
+
+
+def test_chat_proxy_can_be_switched_off(monkeypatch, tmp_path):
+    overlay = tmp_path / "o.yaml"
+    overlay.write_text(yaml.safe_dump({"gateway": {"chat_proxy": False}}), encoding="utf-8")
+    monkeypatch.setenv("SENTINEL_CONFIG", str(overlay))
+    api.reset_state_for_tests()
+    reply = TestClient(app).post("/chat", json={"messages": [{"role": "user", "content": "hi"}]})
+    assert reply.status_code == 404 and "disabled" in reply.json()["detail"]
+
+
+def test_results_fall_back_to_the_snapshot_when_the_store_is_empty(monkeypatch, tmp_path):
+    snapshot = tmp_path / "snap.json"
+    snapshot.write_text(
+        json.dumps(
+            {
+                "baselines": [
+                    {
+                        "baseline": "Envelope only",
+                        "variant": "envelope",
+                        "resolution": 0.7,
+                        "bad_action_prevented": 0.36,
+                        "false_block": 0.0,
+                        "unsafe_execution": 0.21,
+                        "mttm_ms": 1.0,
+                        "cost_usd": 0.0,
+                    }
+                ],
+                "pareto": {},
+                "prevention_partition": [],
+                "ablations": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    overlay = {
+        "store": {"path": str(tmp_path / "empty.duckdb")},
+        "eval": {"experiment": "t", "snapshot_path": str(snapshot)},
+    }
+    (tmp_path / "o.yaml").write_text(yaml.safe_dump(overlay), encoding="utf-8")
+    monkeypatch.setenv("SENTINEL_CONFIG", str(tmp_path / "o.yaml"))
+    api.reset_state_for_tests()
+    rows = TestClient(app).get("/api/experiments/metrics").json()
+    assert rows[0]["baseline"] == "Envelope only" and rows[0]["bad_prevented"] == 0.36
+
+
+def test_console_is_served_with_client_side_route_fallback(tmp_path):
+    from fastapi import FastAPI
+
+    from sentinel.gateway.app import mount_console
+
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "index.html").write_text("<div id=root></div>", encoding="utf-8")
+    (tmp_path / "assets" / "app.js").write_text("console.log(1)", encoding="utf-8")
+    (tmp_path / "shield.svg").write_text("<svg/>", encoding="utf-8")
+    demo = FastAPI()
+
+    @demo.get("/api/ping")
+    def ping() -> dict:
+        return {"ok": True}
+
+    assert mount_console(demo, str(tmp_path)) is True
+    client = TestClient(demo)
+    assert client.get("/api/ping").json() == {"ok": True}  # API routes win
+    assert client.get("/assets/app.js").text == "console.log(1)"
+    assert client.get("/shield.svg").text == "<svg/>"
+    assert "root" in client.get("/assistant").text  # SPA fallback for client routes
+    assert client.get("/api/nope").status_code == 404  # unknown API paths are not swallowed
+    assert client.get("/../pyproject.toml").status_code in (200, 404)
+    assert "root" in client.get("/%2e%2e/pyproject.toml").text  # path traversal falls back, never leaks
+    assert mount_console(FastAPI(), str(tmp_path / "missing")) is False

@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Executes the experiment grid and writes each run to DuckDB with its experiment metadata.
+# Called by scripts/run_eval.py; nothing is kept only in memory.
 """Runs the grid: incidents x seeds x (variant, tau, agent config) -> RunRecords in DuckDB (blueprint §7).
 
 Every run is written with metadata naming its experiment, cell, variant, tau, seed and agent, so the

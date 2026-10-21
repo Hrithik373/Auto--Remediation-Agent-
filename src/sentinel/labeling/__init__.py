@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Labeling package: ground-truth labels (correct / ineffective / destructive / out_of_envelope).
+# Produces the training data for the learned verifier and the labels used by eval metrics.
 """Ground-truth labeling pipeline for the learned verifier. Phase P3 — see PROGRESS.md and
 ARCHITECTURE_BLUEPRINT.md §6.1.
 

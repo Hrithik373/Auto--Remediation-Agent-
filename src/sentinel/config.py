@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Loads config/default.yaml plus an optional overlay and computes the config_hash.
+# Every module reads settings through this; the hash is stamped on every stored run.
 """Runtime config loading + the reproducibility hash recorded on every RunRecord.
 
 CLAUDE.md: "All randomness seeded from config. `config_hash` recorded on every RunRecord." The hash is

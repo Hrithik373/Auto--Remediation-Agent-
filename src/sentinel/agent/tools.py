@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Telemetry tools the ReAct agent can call: get_logs, get_metrics, get_traces, get_topology.
+# Read-only views of the current incident; ablated signals are removed from the registry.
 """Telemetry tools the ReAct diagnosis agent calls over the current incident (blueprint §3).
 
 get_logs / get_metrics / get_traces / get_topology. Each reads the current IncidentContext.telemetry

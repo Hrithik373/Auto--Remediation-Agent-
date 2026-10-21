@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Rebuilds every reported table (baselines, partition, Pareto, ablations) from DuckDB.
+# Shared by scripts/run_eval.py and the /api/experiments endpoints, so both always agree.
 """Rebuilds every reported number from the DuckDB store (blueprint §7, CLAUDE.md "make eval must
 regenerate every figure from scratch"). Used by scripts/run_eval.py and by the console API (P5d), so
 the report and the Results screen can never disagree.

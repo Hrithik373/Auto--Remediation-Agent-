@@ -3,6 +3,7 @@ import QueueRoute from "./routes/QueueRoute";
 import TriageRoute from "./routes/TriageRoute";
 import ResultsRoute from "./routes/ResultsRoute";
 import ObservabilityRoute from "./routes/ObservabilityRoute";
+import AssistantRoute from "./routes/AssistantRoute";
 import StatusDot from "./features/shared/StatusDot";
 
 const MOCK_MODE = import.meta.env.VITE_USE_MOCKS !== "false";
@@ -11,6 +12,7 @@ const NAV_ITEMS = [
   { to: "/", label: "Queue", end: true },
   { to: "/results", label: "Results" },
   { to: "/observability", label: "Observability" },
+  { to: "/assistant", label: "Assistant" },
 ];
 
 /** Router + layout shell (FRONTEND_BLUEPRINT.md §3). Dense, dark, information-first — an on-call
@@ -56,6 +58,7 @@ export default function App() {
             <Route path="/incidents/:incidentId" element={<TriageRoute />} />
             <Route path="/results" element={<ResultsRoute />} />
             <Route path="/observability" element={<ObservabilityRoute />} />
+            <Route path="/assistant" element={<AssistantRoute />} />
           </Routes>
         </main>
       </div>

@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Defines the experiment plan: baselines, the tau sweep and ablations, as runnable cells.
+# Also lists which cells were skipped (e.g. need an LLM) so the report states it.
 """The experiment plan (blueprint §7): five baselines, the tau sweep, and the ablations -- as Cells for
 eval/runner.py. What runs offline vs. what needs the LLM is decided HERE, and the skipped entries are
 returned too, so the report states them instead of silently omitting them.

@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Deterministic selectors that pick which logs, metrics and traces fit the token budget.
+# Used by builder.py; stable output keeps the LLM disk cache hitting on reruns.
 """Log/metric/trace selectors used by context/builder.py (blueprint §3).
 
 All selection is deterministic (no randomness, stable sort keys) so the same incident always yields

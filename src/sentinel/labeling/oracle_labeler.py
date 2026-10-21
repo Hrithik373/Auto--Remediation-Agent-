@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Assigns a ground-truth label to ANY proposed action, recording where the label came from.
+# Sources: envelope rule, exact/partial fixture match, then labeling rules.
 """Derives ActionLabels (blueprint §6.1) for ANY proposed action -- not just the fixture's examples.
 
 Sources, in priority order, each recorded as provenance so the ground truth stays traceable:

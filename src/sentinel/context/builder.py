@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Renders an incident's telemetry into a token-budgeted, redacted prompt section.
+# Never includes the ground-truth fault_family, so an LLM can't read the answer.
 """Telemetry -> LLM context: compaction, token budgeting, redaction (blueprint §3).
 
 Hard rule: `IncidentContext.fault_family` is NEVER rendered -- it is eval-only ground truth, and

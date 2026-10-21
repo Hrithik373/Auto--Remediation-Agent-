@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Draws the report figures (Pareto, prevention partition, reliability, agent quality).
+# Reads only report.py's results dict, never in-memory runs.
 """Report figures, rendered from eval/report.py's results dict (never from in-memory runs), so
 `make eval` regenerates every figure from DuckDB (CLAUDE.md).
 

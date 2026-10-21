@@ -1,4 +1,4 @@
-"""ReAct diagnosis agent (blueprint §3, §5). In-repo and readable on purpose -- CLAUDE.md: "Don't add a
+"""ReAct diagnosis agent (blueprint §3, §5). In-repo and readable on purpose -- : "Don't add a
 heavy agent framework".
 
 Text protocol (model-agnostic; works with any LLMClient). Each assistant turn is one of:
@@ -9,7 +9,7 @@ Text protocol (model-agnostic; works with any LLMClient). Each assistant turn is
 
 Tool results come back as `Observation: ...` user turns. Malformed turns are answered with an
 observation explaining the problem, never silently repaired. The prompt here belongs to the agent
-alone -- the verifier has its own, independent prompt and state (CLAUDE.md).
+alone -- the verifier has its own, independent prompt and state ().
 """
 
 from __future__ import annotations

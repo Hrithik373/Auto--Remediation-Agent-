@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Generates rule-based hard cases (same action type, opposite label) from labeling_rules.yaml.
+# Stops the learned verifier from scoring well by memorizing action types alone.
 """Rule-based hard-case candidates: same action type, opposite labels (config/labeling_rules.yaml).
 
 Without these, the fixtures' labels are a function of action type alone (a type-only baseline scores

@@ -1,3 +1,6 @@
+// sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+// Hooks for runs: list/get runs, start a run, record human decisions, and the live SSE stream.
+// The live run uses EventSource on /api/runs/:id/stream, never polling.
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiPost, sseUrl } from "./client";

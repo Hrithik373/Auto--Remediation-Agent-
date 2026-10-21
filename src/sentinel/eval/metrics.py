@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# The single source of truth for metrics: resolution, bad-action-prevented, false-block ...
+# Used by the report, the notebook and the console API alike.
 """Metrics computed from RunRecords -- blueprint §7. The single source of truth (CLAUDE.md: "Don't invent
 metrics; use the ones in eval/metrics.py"); the report, the notebook and the console API all call these.
 

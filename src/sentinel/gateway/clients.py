@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# LLM client layer: Anthropic and OpenAI-compatible (Groq, Ollama) clients, a disk cache,
+# a scripted test client and the UsageLedger for per-component token/cost accounting.
 """LLMClient interface + token/cost accounting (blueprint §2, §11 "cost blowup" mitigation).
 
 Thin on purpose so Anthropic / OpenAI / vLLM are drop-in. Four pieces:
@@ -254,8 +257,10 @@ class CachingLLMClient(LLMClient):
         return response
 
 
-def build_provider_client(config: dict, provider: str | None) -> LLMClient:
-    """The raw client for a named provider in config `llm_providers` (default: anthropic)."""
+def build_provider_client(config: dict, provider: str | None, *, http_opts: dict | None = None) -> LLMClient:
+    """The raw client for a named provider in config `llm_providers` (default: anthropic). `http_opts`
+    (timeout_s, max_retries) tune the OpenAI-compatible client, e.g. so an interactive caller gives up
+    sooner on rate limits than a batch eval would."""
     import os
 
     pricing = config.get("pricing_usd_per_mtok", {})
@@ -268,16 +273,21 @@ def build_provider_client(config: dict, provider: str | None) -> LLMClient:
     if spec["kind"] == "openai_compatible":
         key_env = spec.get("api_key_env")
         return OpenAICompatibleLLMClient(
-            base_url=spec["base_url"], api_key=os.environ.get(key_env) if key_env else None, pricing=pricing
+            base_url=spec["base_url"],
+            api_key=os.environ.get(key_env) if key_env else None,
+            pricing=pricing,
+            **(http_opts or {}),
         )
     raise ValueError(f"LLM provider {name!r} has unknown kind {spec['kind']!r}")
 
 
-def build_llm_client(config: dict, *, provider: str | None = None, cache: bool = True) -> LLMClient:
+def build_llm_client(
+    config: dict, *, provider: str | None = None, cache: bool = True, http_opts: dict | None = None
+) -> LLMClient:
     """The configured real client for `provider`, behind the disk cache unless disabled."""
     from sentinel.config import resolve_path
 
-    client: LLMClient = build_provider_client(config, provider)
+    client: LLMClient = build_provider_client(config, provider, http_opts=http_opts)
     cache_dir = config.get("agent", {}).get("llm_cache_dir")
     if cache and cache_dir:
         client = CachingLLMClient(client, resolve_path(cache_dir))

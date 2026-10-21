@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# ProposedAction (what the agent suggests) and ExecutionResult (what the executor reports).
+# Action types are not restricted here; config/action_envelope.yaml is the allow-list.
 """Action-side contracts: what the diagnosis agent proposes and what the executor reports back.
 
 See ARCHITECTURE_BLUEPRINT.md §4. `action_type` values are validated against

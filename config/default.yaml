@@ -10,13 +10,21 @@ models:
   diagnosis_agent_provider: groq
   llm_judge: qwen/qwen3.8-27b          # Phase P2 -- free via Groq
   llm_judge_provider: groq
+  assistant: qwen/qwen3.8-27b          # Phase P6 -- the chatbot's own model + client (ASSISTANT_BLUEPRINT.md)
+  assistant_provider: groq
   max_tokens_per_call: 4096
 
 # Where each provider named above lives. openai_compatible = any OpenAI-style /chat/completions API.
 # Keys come from the environment (put them in .env; scripts/start_backend.ps1 loads it).
 llm_providers:
   anthropic: { kind: anthropic }                      # ANTHROPIC_API_KEY
-  groq: { kind: openai_compatible, base_url: "https://api.groq.com/openai/v1", api_key_env: GROQ_API_KEY }
+  # max_input_tokens: per-request input cap the judge shrinks its prompt to fit. Groq's free (on_demand)
+  # tier allows 7000 input tokens/minute, so one request must stay below that; raise it on a paid tier.
+  groq:
+    kind: openai_compatible
+    base_url: "https://api.groq.com/openai/v1"
+    api_key_env: GROQ_API_KEY
+    max_input_tokens: 6000
   ollama: { kind: openai_compatible, base_url: "http://localhost:11434/v1" }   # local, no key
 
 # USD per 1M tokens (provider rates, cached 2026-09-25). Used by
@@ -44,6 +52,7 @@ agent:
 
 budgets:
   context_tokens: 8000       # per-incident telemetry compaction target (schemas/incident.py)
+  judge_context_tokens: 8000 # telemetry the LLM judge sees; 4000 truncated ITBench evidence
   max_steps: 6                # orchestrator loop cap (blueprint §5)
 
 verifier:
@@ -90,3 +99,15 @@ gateway:
 store:
   backend: duckdb
   path: runs/sentinel.duckdb
+
+# Phase P6 -- sentinel-assistant, the explainer chatbot (ASSISTANT_BLUEPRINT.md). It explains verdicts
+# from verifier.policy and never executes anything. Without the provider's key it answers offline.
+assistant:
+  enabled_llm: true
+  max_tool_calls: 5
+  max_tokens: 1500
+  llm_timeout_s: 30                 # interactive: on a slow or rate-limited provider, fall back to
+  llm_max_retries: 1                # offline mode quickly instead of waiting out retry-after
+  default_variant: learned          # offline-safe default for scenario judgements
+  results_path: runs/eval/results.json
+  docs: [ARCHITECTURE_BLUEPRINT.md, FRONTEND_BLUEPRINT.md, ASSISTANT_BLUEPRINT.md, README.md, PROGRESS.md]

@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Learned verifier: calibrated XGBoost estimate of P(destructive), trained per incident fold.
+# Model files are written by `make train` and loaded from runs/models/.
 """Learned verifier (v2, blueprint §5, §6.2): calibrated P(destructive) from XGBoost over features.py.
 
 Training protocol -- "split by incident; never leak an incident across splits":

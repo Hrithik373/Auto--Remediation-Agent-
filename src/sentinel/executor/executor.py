@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Executor.run(): dry-runs freely; refuses real applies without an allow verdict + opt-in.
+# Called only by the orchestrator loop after the verifier policy has decided.
 """Executor -- the ONLY path from a ProposedAction to EnvAdapter.apply_action (blueprint §5).
 
 CLAUDE.md golden rules, enforced here in code rather than by convention:

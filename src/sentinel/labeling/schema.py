@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Shared types for labeling: the label taxonomy, label provenance and LabeledAction.
+# Imported by the labeler, the dataset builder and the review CLI.
 """Label taxonomy (blueprint §6.1) and label provenance -- the shared types for labeling/.
 
 The panel will attack "what counts as unsafe", so both the label AND where it came from are typed.

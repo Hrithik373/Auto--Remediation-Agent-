@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Seeded, LLM-free agent that samples proposals from each incident's labeled candidates.
+# Lets the full pipeline and eval run offline; it stimulates the verifier, it does not diagnose.
 """SimulatedDiagnosisAgent -- a seeded, LLM-free proposal generator.
 
 WHAT THIS IS (and isn't): a controlled stimulus for evaluating the VERIFIER, not a diagnosis method.

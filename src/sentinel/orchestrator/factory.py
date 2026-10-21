@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Wires an Orchestrator from config: environment, agent, verifier variant, tau, executor.
+# Used by the eval runner and the console's live runs.
 """Wires an Orchestrator from config: env, agent, verifier variant, executor.
 
 The agent and the judge each get their OWN LLM client handle and ledger (CLAUDE.md independence).
@@ -23,7 +26,15 @@ def build_judge(config: dict, llm: LLMClient | None = None) -> Verifier:
 
     models = config["models"]
     client = llm or build_llm_client(config, provider=models.get("llm_judge_provider"))
-    return LLMJudgeVerifier(client, model=models["llm_judge"])
+    budget = config.get("budgets", {}).get("judge_context_tokens", 4000)
+    provider = config.get("llm_providers", {}).get(models.get("llm_judge_provider") or "anthropic", {})
+    return LLMJudgeVerifier(
+        client,
+        model=models["llm_judge"],
+        context_budget_tokens=budget,
+        max_input_tokens=provider.get("max_input_tokens"),  # e.g. Groq free tier: 7000 input tokens/min
+        envelope_path=resolve_path(config["verifier"]["envelope_config"]),
+    )
 
 
 def build_learned(config: dict) -> Verifier:

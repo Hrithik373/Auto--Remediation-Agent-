@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Sweeps the risk threshold tau and builds the risk-vs-autonomy Pareto front.
+# Feeds the headline figure and the console's Pareto chart.
 """The risk-autonomy Pareto (blueprint §7): sweep tau, plot bad-action-prevented vs false-block (and vs
 resolution). The headline figure; tau is the trade-off knob the console's ParetoChart drags.
 """

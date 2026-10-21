@@ -1,3 +1,6 @@
+// sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+// Fetch wrapper for every backend call: /api base URL, JSON parsing, ApiError, SSE URL.
+// Used by the hooks in incidents.ts, runs.ts and experiments.ts.
 /** Thin fetch wrapper -- base URL, JSON parsing, and error normalization for every api/ hook. */
 
 export class ApiError extends Error {

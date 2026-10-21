@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Runs console-started orchestrations in background threads and records each step as an event.
+# api.py's SSE endpoint replays these events; finished runs are saved to DuckDB.
 """Live console runs (FRONTEND_BLUEPRINT.md §5.2): the orchestrator runs in a background thread and
 each StepRecord is appended to the run's event log AS THE LOOP PRODUCES IT; the SSE endpoint replays
 that log and then waits for new events. A client that reconnects mid-run gets every event from the

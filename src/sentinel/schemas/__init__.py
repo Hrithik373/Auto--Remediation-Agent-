@@ -1,3 +1,6 @@
+# sentinel-remediate: an LLM agent proposes incident fixes; verifiers gate every fix before it runs.
+# Schemas package: the Pydantic contracts for every payload crossing module boundaries.
+# The frontend's api/types.ts is generated from these models.
 """Pydantic v2 contracts every cross-module payload in sentinel-remediate must use.
 
 Per CLAUDE.md: "No loose dicts across module boundaries." These four modules are frozen in Phase P0
